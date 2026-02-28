@@ -48,6 +48,18 @@ export const swaggerSpec = swaggerJSDoc({
           summary: 'Login account'
         }
       },
+      '/auth/forgot-password': {
+        post: {
+          tags: ['Auth'],
+          summary: 'Send reset password token'
+        }
+      },
+      '/auth/reset-password': {
+        post: {
+          tags: ['Auth'],
+          summary: 'Reset password with token'
+        }
+      },
       '/auth/refresh': {
         post: {
           tags: ['Auth'],

@@ -2,22 +2,16 @@ import http from 'node:http';
 
 import app from '@/app';
 import { env } from '@config/env';
-import { closeKafka, initKafka } from '@config/kafka';
 import { logger } from '@config/logger';
 import { verifyMailer } from '@config/mailer';
 import { connectMongo, disconnectMongo } from '@config/mongoose';
-import { closeRedis, initRedis } from '@config/redis';
 import { initSocketServer } from '@config/socket';
-import { startKafkaConsumer } from '@services/kafka.service';
 
 let httpServer: http.Server | null = null;
 
 const startServer = async () => {
   await connectMongo();
-  await initRedis();
-  await initKafka();
   await verifyMailer();
-  await startKafkaConsumer();
 
   httpServer = http.createServer(app);
   initSocketServer(httpServer);
@@ -31,8 +25,6 @@ const shutdown = async (signal: string) => {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
 
   httpServer?.close();
-  await closeKafka();
-  await closeRedis();
   await disconnectMongo();
 
   process.exit(0);

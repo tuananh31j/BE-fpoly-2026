@@ -22,17 +22,10 @@ const envSchema = z.object({
 
   JWT_ACCESS_SECRET: z.string().default('dev-access-secret-change-me'),
   JWT_REFRESH_SECRET: z.string().default('dev-refresh-secret-change-me'),
+  JWT_RESET_SECRET: z.string().default('dev-reset-secret-change-me'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
-
-  REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
-  REDIS_KEY_PREFIX: z.string().default('poly2026'),
-
-  KAFKA_ENABLED: z.string().default('false'),
-  KAFKA_CLIENT_ID: z.string().default('poly2026-be'),
-  KAFKA_BROKERS: z.string().default('127.0.0.1:9092'),
-  KAFKA_GROUP_ID: z.string().default('poly2026-be-group'),
-  KAFKA_TOPIC_EVENTS: z.string().default('poly2026.events'),
+  JWT_RESET_EXPIRES_IN: z.string().default('30m'),
 
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
@@ -61,10 +54,6 @@ const parseOrigins = (value: string) => {
 export const env = {
   ...parsedEnv,
   corsOriginList: parseOrigins(parsedEnv.CORS_ORIGIN),
-  kafkaEnabled: parsedEnv.KAFKA_ENABLED === 'true',
-  kafkaBrokers: parsedEnv.KAFKA_BROKERS.split(',')
-    .map((broker) => broker.trim())
-    .filter(Boolean),
   mongoRequireReplicaSet: parsedEnv.MONGODB_REQUIRE_REPLICA_SET === 'true',
   isProduction: parsedEnv.NODE_ENV === 'production',
   isDevelopment: parsedEnv.NODE_ENV === 'development',
