@@ -19,7 +19,6 @@ import { UserModel } from '@/models/user.model';
 import { VoucherModel } from '@/models/voucher.model';
 import type {
   InventoryReason,
-  MembershipTier,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -254,7 +253,7 @@ const seedUsers = async (count: number) => {
   const defaultPasswordHash = await bcrypt.hash('12345678', 10);
   const targetCount = Math.max(count, FIXED_SEED_USERS.length);
   const roleCycle: Role[] = ['customer', 'staff', 'customer'];
-  const tierPool: MembershipTier[] = ['bronze', 'silver', 'gold', 'platinum'];
+  const tierPool = ['bronze', 'silver', 'gold', 'platinum'] as const;
 
   const fixedUserPayloads = FIXED_SEED_USERS.map((account, index) => ({
     email: account.email,
