@@ -12,7 +12,6 @@ export const validate = (schema: ZodTypeAny) => {
         params: req.params
       }) as {
         body?: Request['body'];
-        
         params?: Request['params'];
       };
 

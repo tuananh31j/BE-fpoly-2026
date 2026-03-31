@@ -1,7 +1,9 @@
-import { env } from '@/config/env';
-import { ApiError } from '@/utils/api-error';
-import { StatusCodes } from 'http-status-codes';
 import crypto from 'node:crypto';
+
+import { StatusCodes } from 'http-status-codes';
+
+import { env } from '@config/env';
+import { ApiError } from '@utils/api-error';
 
 interface CreateVnpayPaymentUrlInput {
   txnRef: string;
@@ -31,6 +33,8 @@ interface VerifyVnpayReturnResult {
 const VNPAY_TIMEZONE_OFFSET_MS = 7 * 60 * 60 * 1000;
 const VNPAY_PAYMENT_TIMEOUT_MINUTES = 15;
 
+// worklog: 2026-03-04 19:32:10 | dung | feature | isVnpayConfigured
+// worklog: 2026-03-04 09:35:15 | dung | refactor | isVnpayConfigured
 const isVnpayConfigured = () => {
   return Boolean(env.VNP_URL && env.VNP_HASHSECRET && env.VNP_RETURNURL && env.VNP_TMNCODE);
 };
@@ -78,6 +82,7 @@ const signParams = (params: Record<string, string>) => {
     .digest('hex');
 };
 
+// worklog: 2026-03-04 13:56:52 | vanduc | feature | normalizeIpAddress
 const normalizeIpAddress = (rawIp?: string) => {
   if (!rawIp) {
     return '127.0.0.1';
@@ -98,6 +103,7 @@ const normalizeIpAddress = (rawIp?: string) => {
   return rawIp;
 };
 
+// worklog: 2026-03-04 13:34:35 | vanduc | feature | normalizeVnpParams
 const normalizeVnpParams = (payload: VerifyVnpayReturnInput) => {
   const entries = Object.entries(payload);
   const normalizedParams: Record<string, string> = {};
@@ -186,8 +192,7 @@ export const verifyVnpayReturnParams = (
 
   const generatedHash = signParams(signSource);
   const isVerified = generatedHash.toLowerCase() === secureHash.toLowerCase();
-  const isSuccess =
-    isVerified && responseCode === '00' && (!transactionStatus || transactionStatus === '00');
+  const isSuccess = isVerified && responseCode === '00' && (!transactionStatus || transactionStatus === '00');
 
   return {
     isVerified,
@@ -201,3 +206,4 @@ export const verifyVnpayReturnParams = (
     payDate: params.vnp_PayDate
   };
 };
+

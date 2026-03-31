@@ -1,4 +1,4 @@
-import { object, z } from 'zod';
+import { z } from 'zod';
 
 export const listReviewsSchema = z.object({
   params: z.object({
@@ -39,7 +39,7 @@ export const reviewIdParamSchema = z.object({
   })
 });
 
-export const modernateReviewSchema = z.object({
+export const moderateReviewSchema = z.object({
   params: z.object({
     reviewId: z.string().min(1)
   }),

@@ -1,8 +1,7 @@
-import { model, Schema } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
 export interface ColorDocument {
   name: string;
-  slug: string;
   hexCode?: string;
   isActive: boolean;
   createdAt: Date;
@@ -12,14 +11,14 @@ export interface ColorDocument {
 const colorSchema = new Schema<ColorDocument>(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, trim: true, unique: true, lowercase: true },
     hexCode: { type: String, trim: true, uppercase: true },
     isActive: { type: Boolean, default: true }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
-colorSchema.index({ slug: 1 }, { unique: true });
 colorSchema.index({ name: 1 });
 colorSchema.index({ isActive: 1 });
 

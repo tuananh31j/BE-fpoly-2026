@@ -143,7 +143,11 @@ export const createZalopayPaymentUrl = async (
   const appTransId = input.appTransId.trim();
   const apptime = Date.now();
   const amount = Math.round(input.amount);
-  const embedData = JSON.stringify(input.embedData ?? {});
+  const embedPayload = {
+    ...(input.embedData ?? {}),
+    ...(input.redirectUrl?.trim() ? { redirecturl: input.redirectUrl.trim() } : {})
+  };
+  const embedData = JSON.stringify(embedPayload);
   const item = JSON.stringify(input.items ?? []);
 
   const macData = `${appId}|${appTransId}|${appUser}|${amount}|${apptime}|${embedData}|${item}`;
@@ -160,14 +164,13 @@ export const createZalopayPaymentUrl = async (
     description: input.description,
     mac
   });
+
   if (typeof input.bankCode === 'string') {
     payload.append('bankcode', input.bankCode.trim());
   }
 
-  if (input.redirectUrl?.trim()) {
-    payload.append('redirecturl', input.redirectUrl.trim());
-  }
   let response: Response;
+
   try {
     response = await fetch(resolveZalopayCreateEndpoint(), {
       method: 'POST',
@@ -179,8 +182,9 @@ export const createZalopayPaymentUrl = async (
     });
   } catch (error) {
     if (isTimeoutLikeError(error)) {
-      throw new ApiError(StatusCodes.GATEWAY_TIMEOUT, 'ZaloPay không phản hồi kịp thời');
+      throw new ApiError(StatusCodes.BAD_GATEWAY, 'ZaloPay phản hồi quá chậm, vui lòng thử lại');
     }
+
     throw error;
   }
 
@@ -299,7 +303,9 @@ export const queryZalopayOrderStatus = async (appTransId: string): Promise<Zalop
     apptransid: normalizedTransId,
     mac
   });
+
   let response: Response;
+
   try {
     response = await fetch(resolveZalopayQueryEndpoint(), {
       method: 'POST',
@@ -312,10 +318,11 @@ export const queryZalopayOrderStatus = async (appTransId: string): Promise<Zalop
   } catch (error) {
     if (isTimeoutLikeError(error)) {
       throw new ApiError(
-        StatusCodes.GATEWAY_TIMEOUT,
+        StatusCodes.BAD_GATEWAY,
         'Không thể kiểm tra trạng thái ZaloPay kịp thời'
       );
     }
+
     throw error;
   }
 
@@ -341,10 +348,6 @@ export const queryZalopayOrderStatus = async (appTransId: string): Promise<Zalop
     returnMessage: data.returnmessage ?? data.return_message,
     subReturnCode: Number(data.subreturncode ?? data.sub_return_code ?? 0) || undefined,
     subReturnMessage: data.subreturnmessage ?? data.sub_return_message,
-    zpTransId: data.zptransid
-      ? String(data.zptransid)
-      : data.zp_trans_id
-        ? String(data.zp_trans_id)
-        : undefined
+    zpTransId: data.zptransid ? String(data.zptransid) : data.zp_trans_id ? String(data.zp_trans_id) : undefined
   };
 };

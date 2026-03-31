@@ -1,8 +1,7 @@
-import { model, Schema } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
 export interface BrandDocument {
   name: string;
-  slug: string;
   description?: string;
   logoUrl?: string;
   isActive: boolean;
@@ -13,15 +12,15 @@ export interface BrandDocument {
 const brandSchema = new Schema<BrandDocument>(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, trim: true, unique: true, lowercase: true },
     description: { type: String },
     logoUrl: { type: String },
     isActive: { type: Boolean, default: true }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
-brandSchema.index({ slug: 1 }, { unique: true });
 brandSchema.index({ name: 1 });
 brandSchema.index({ isActive: 1 });
 

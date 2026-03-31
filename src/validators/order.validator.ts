@@ -21,14 +21,25 @@ export const listOrdersSchema = z.object({
     userId: z.string().optional(),
     search: z.string().optional(),
     status: z
-      .enum(['pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'returned'])
+      .enum([
+        'pending',
+        'confirmed',
+        'shipping',
+        'delivered',
+        'completed',
+        'cancelled',
+        'returned'
+      ])
       .optional()
   })
 });
 
 export const orderStatisticsSchema = z.object({
   query: z.object({
-    days: z.string().regex(/^\d+$/).optional()
+    days: z
+      .string()
+      .regex(/^\d+$/)
+      .optional()
   })
 });
 
@@ -57,9 +68,9 @@ export const updateOrderStatusSchema = z.object({
     status: z.enum([
       'pending',
       'confirmed',
-      'completed',
       'shipping',
       'delivered',
+      'completed',
       'cancelled',
       'returned'
     ]),
@@ -87,20 +98,10 @@ export const verifyVnpayReturnSchema = z.object({
     .passthrough()
 });
 
-export const verifyZalopayCallbackSchema = z.object({
-  body: z
-    .object({
-      data: z.string().min(1),
-      mac: z.string().min(1),
-      type: z.union([z.string(), z.number()]).optional()
-    })
-    .passthrough()
-});
-
 export const verifyZalopayRedirectSchema = z.object({
   body: z
     .object({
-      appid: z.string().min(1),
+      appid: z.union([z.string(), z.number()]),
       apptransid: z.string().min(1),
       pmcid: z.string().optional(),
       bankcode: z.string().optional(),
@@ -110,6 +111,33 @@ export const verifyZalopayRedirectSchema = z.object({
       checksum: z.string().min(1)
     })
     .passthrough()
+});
+
+export const verifyZalopayCallbackSchema = z.object({
+  body: z
+    .object({
+      data: z.string().min(1),
+      mac: z.string().min(1)
+    })
+    .passthrough()
+});
+
+export const createReturnRequestSchema = z.object({
+  params: z.object({
+    orderId: z.string().min(1)
+  }),
+  body: z.object({
+    items: z
+      .array(
+        z.object({
+          variantId: z.string().min(1),
+          quantity: z.number().int().positive()
+        })
+      )
+      .min(1),
+    reason: z.string().max(500).optional(),
+    refundMethod: z.enum(['bank_transfer', 'wallet']).optional()
+  })
 });
 
 export const createCancelRefundRequestSchema = z.object({
@@ -122,6 +150,19 @@ export const createCancelRefundRequestSchema = z.object({
     accountNumber: z.string().min(6).max(32),
     accountHolder: z.string().min(2).max(120),
     note: z.string().max(500).optional()
+  })
+});
+
+export const updateReturnRequestSchema = z.object({
+  params: z.object({
+    orderId: z.string().min(1),
+    returnRequestId: z.string().min(1)
+  }),
+  body: z.object({
+    status: z.enum(['pending', 'approved', 'rejected', 'refunded']),
+    refundMethod: z.enum(['bank_transfer', 'wallet']).optional(),
+    note: z.string().max(500).optional(),
+    refundEvidenceImages: z.array(z.string().min(1)).optional()
   })
 });
 

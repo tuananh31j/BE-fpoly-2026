@@ -1,11 +1,11 @@
+import type { Types } from 'mongoose';
 import { StatusCodes } from 'http-status-codes';
 
+import { OrderModel } from '@models/order.model';
 import { VoucherModel, type VoucherDocument } from '@models/voucher.model';
 import { ApiError } from '@utils/api-error';
 import { toObjectId } from '@utils/object-id';
 import { toPaginatedData } from '@utils/pagination';
-import { OrderModel } from '@/models/order.model';
-import type { Types } from 'mongoose';
 
 interface VoucherPayload {
   code: string;
@@ -35,6 +35,21 @@ const assertVoucherUsageConfig = (usageLimit: number, maxUsagePerUser: number) =
   }
 };
 
+const assertVoucherDiscountConfig = ({
+  discountType,
+  discountValue,
+  minOrderValue
+}: Pick<VoucherPayload, 'discountType' | 'discountValue' | 'minOrderValue'>) => {
+  const normalizedMinOrderValue = minOrderValue ?? 0;
+
+  if (discountType === 'fixed_amount' && discountValue >= normalizedMinOrderValue) {
+    throw new ApiError(
+      StatusCodes.UNPROCESSABLE_ENTITY,
+      'Giá trị giảm tiền cố định phải nhỏ hơn đơn tối thiểu'
+    );
+  }
+};
+
 const getUserVoucherUsedCount = async (userId: string, voucherId: Types.ObjectId) => {
   return OrderModel.countDocuments({
     userId: toObjectId(userId, 'userId'),
@@ -57,21 +72,6 @@ export const listVouchers = async (options: {
   if (options.code?.trim()) {
     filters.code = new RegExp(options.code.trim(), 'i');
   }
-
-  const assertVoucherDiscountConfig = ({
-  discountType,
-  discountValue,
-  minOrderValue
-}: Pick<VoucherPayload, 'discountType' | 'discountValue' | 'minOrderValue'>) => {
-  const normalizedMinOrderValue = minOrderValue ?? 0;
-
-  if (discountType === 'fixed_amount' && discountValue >= normalizedMinOrderValue) {
-    throw new ApiError(
-      StatusCodes.UNPROCESSABLE_ENTITY,
-      'Giá trị giảm tiền cố định phải nhỏ hơn đơn tối thiểu'
-    );
-  }
-};
 
   const totalItems = await VoucherModel.countDocuments(filters);
   const items = await VoucherModel.find(filters)
@@ -129,6 +129,7 @@ export const listAvailableVouchersForCheckout = async (
   );
 };
 
+// worklog: 2026-03-04 21:58:50 | dung | cleanup | getVoucherById
 export const getVoucherById = async (voucherId: string) => {
   const voucher = await VoucherModel.findById(toObjectId(voucherId, 'voucherId')).lean();
 
@@ -148,6 +149,7 @@ export const createVoucher = async (payload: VoucherPayload) => {
   }
 
   assertVoucherUsageConfig(payload.usageLimit, payload.maxUsagePerUser);
+  assertVoucherDiscountConfig(payload);
 
   const created = await VoucherModel.create({
     code: payload.code,
@@ -167,8 +169,13 @@ export const createVoucher = async (payload: VoucherPayload) => {
   return created.toObject();
 };
 
+// worklog: 2026-03-04 09:45:01 | vanduc | cleanup | updateVoucher
 export const updateVoucher = async (voucherId: string, payload: Partial<VoucherPayload>) => {
-  if (payload.startDate && payload.expirationDate && payload.expirationDate <= payload.startDate) {
+  if (
+    payload.startDate &&
+    payload.expirationDate &&
+    payload.expirationDate <= payload.startDate
+  ) {
     throw new ApiError(
       StatusCodes.UNPROCESSABLE_ENTITY,
       'Voucher expiration date must be greater than start date'
@@ -188,6 +195,9 @@ export const updateVoucher = async (voucherId: string, payload: Partial<VoucherP
     payload.maxUsagePerUser ??
     existed.maxUsagePerUser ??
     Math.max(1, (payload.usageLimit ?? existed.usageLimit) - 1);
+  const nextDiscountType = payload.discountType ?? existed.discountType;
+  const nextDiscountValue = payload.discountValue ?? existed.discountValue;
+  const nextMinOrderValue = payload.minOrderValue ?? existed.minOrderValue;
 
   if (nextExpirationDate <= nextStartDate) {
     throw new ApiError(
@@ -197,6 +207,11 @@ export const updateVoucher = async (voucherId: string, payload: Partial<VoucherP
   }
 
   assertVoucherUsageConfig(nextUsageLimit, nextMaxUsagePerUser);
+  assertVoucherDiscountConfig({
+    discountType: nextDiscountType,
+    discountValue: nextDiscountValue,
+    minOrderValue: nextMinOrderValue
+  });
 
   const updated = await VoucherModel.findByIdAndUpdate(
     toObjectId(voucherId, 'voucherId'),
@@ -213,6 +228,7 @@ export const updateVoucher = async (voucherId: string, payload: Partial<VoucherP
   return updated;
 };
 
+// worklog: 2026-03-04 13:56:52 | vanduc | feature | deleteVoucher
 export const deleteVoucher = async (voucherId: string) => {
   const deleted = await VoucherModel.findByIdAndDelete(toObjectId(voucherId, 'voucherId')).lean();
 
@@ -261,11 +277,9 @@ export const applyVoucherForSubtotal = async (
       'Bạn đã đạt giới hạn sử dụng voucher này cho tài khoản của mình'
     );
   }
+
   if (subtotal < voucher.minOrderValue) {
-    throw new ApiError(
-      StatusCodes.UNPROCESSABLE_ENTITY,
-      'Đơn hàng chưa đạt giá trị tối thiểu để áp voucher'
-    );
+    throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'Đơn hàng chưa đạt giá trị tối thiểu để áp voucher');
   }
 
   const calculated =

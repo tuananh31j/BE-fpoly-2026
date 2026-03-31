@@ -21,7 +21,7 @@ export const assertOrderTransitionAllowed = (from: OrderStatus, to: OrderStatus)
   const allowed = transitionMap[from];
 
   if (!allowed.includes(to)) {
-     throw new ApiError(
+    throw new ApiError(
       StatusCodes.UNPROCESSABLE_ENTITY,
       `Invalid order transition: ${from} -> ${to}`
     );

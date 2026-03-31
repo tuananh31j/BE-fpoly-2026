@@ -1,17 +1,34 @@
-import { Schema, type Types, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 
-import type { OrderStatus, PaymentMethod, PaymentStatus, ZalopayChannel } from '@/types/domain';
-import { ref } from 'node:process';
+import type {
+  CancelRefundRequestStatus,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  RefundMethod,
+  ReturnRequestStatus,
+  ZalopayChannel
+} from '@/types/domain';
 
 export interface OrderItemSnapshot {
   productId: Types.ObjectId;
   productName: string;
-  productSku: string;
+  variantId: Types.ObjectId;
+  variantSku: string;
+  variantColor: string;
   productImage?: string;
   quantity: number;
   price: number;
   total: number;
 }
+
+export interface OrderStatusHistory {
+  status: OrderStatus;
+  changedBy: Types.ObjectId;
+  note?: string;
+  changedAt: Date;
+}
+
 export interface OrderReturnItem {
   productId: Types.ObjectId;
   productName: string;
@@ -34,13 +51,6 @@ export interface OrderReturnRequest {
   items: OrderReturnItem[];
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface OrderStatusHistory {
-  status: OrderStatus;
-  changedBy: Types.ObjectId;
-  note?: string;
-  changedAt: Date;
 }
 
 export interface OrderCancelRefundRequest {
@@ -94,7 +104,9 @@ const orderItemSchema = new Schema<OrderItemSnapshot>(
   {
     productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
     productName: { type: String, required: true },
-    productSku: { type: String, required: true },
+    variantId: { type: Schema.Types.ObjectId, ref: 'ProductVariant', required: true },
+    variantSku: { type: String, required: true },
+    variantColor: { type: String, required: true },
     productImage: { type: String },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 },
@@ -198,17 +210,22 @@ const orderSchema = new Schema<OrderDocument>(
     },
     paymentStatus: {
       type: String,
+      enum: ['pending', 'paid', 'failed', 'refunded'],
+      default: 'pending'
+    },
+    paymentTxnRef: { type: String, trim: true, uppercase: true },
+    paymentTransactionNo: { type: String, trim: true },
+    paymentGatewayResponseCode: { type: String, trim: true },
+    paidAt: { type: Date },
+    refundedAt: { type: Date },
+    voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
+    status: {
+      type: String,
       enum: ['pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'returned'],
       default: 'pending'
     },
     deliveredAt: { type: Date },
     completedAt: { type: Date },
-    voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
-    status: {
-      type: String,
-      enum: ['pending', 'confirmed', 'preparing', 'shipping', 'delivered', 'cancelled', 'returned'],
-      default: 'pending'
-    },
     items: { type: [orderItemSchema], default: [] },
     statusHistory: { type: [statusHistorySchema], default: [] },
     returnRequests: { type: [returnRequestSchema], default: [] },
@@ -217,7 +234,7 @@ const orderSchema = new Schema<OrderDocument>(
   { timestamps: true }
 );
 
-orderSchema.index({ orderCode: 1 }, { unique: true });
+orderSchema.index({ paymentTxnRef: 1 }, { unique: true, sparse: true });
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 

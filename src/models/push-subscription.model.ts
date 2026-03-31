@@ -1,6 +1,6 @@
+import { Schema, model, type Types } from 'mongoose';
+
 import type { Role } from '@/types/domain';
-import { model, Schema, type Types } from 'mongoose';
-import { required } from 'zod/v4/core/util.cjs';
 
 interface PushSubscriptionKeys {
   p256dh: string;
@@ -39,7 +39,6 @@ const pushSubscriptionSchema = new Schema<PushSubscriptionDocument>(
   }
 );
 
-pushSubscriptionSchema.index({ endpoint: 1 }, { unique: true });
 pushSubscriptionSchema.index({ userId: 1, role: 1 });
 pushSubscriptionSchema.index({ role: 1 });
 

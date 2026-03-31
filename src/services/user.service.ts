@@ -44,6 +44,7 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const ensureNoConflict = async (email: string, excludedUserId?: string) => {
   const query: Record<string, unknown> = { email };
+
   if (excludedUserId) {
     query._id = {
       $ne: toObjectId(excludedUserId, 'userId')

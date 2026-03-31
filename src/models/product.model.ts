@@ -1,4 +1,4 @@
-import { Schema, type Types, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 
 export interface ProductDocument {
   name: string;
@@ -9,8 +9,6 @@ export interface ProductDocument {
   attributes?: Record<string, unknown>;
   images: string[];
   isAvailable: boolean;
-  metaTitle?: string;
-  metaDescription?: string;
   averageRating: number;
   reviewCount: number;
   soldCount: number;
@@ -28,8 +26,6 @@ const productSchema = new Schema<ProductDocument>(
     attributes: { type: Schema.Types.Mixed },
     images: [{ type: String }],
     isAvailable: { type: Boolean, default: true },
-    metaTitle: { type: String },
-    metaDescription: { type: String },
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0, min: 0 },
     soldCount: { type: Number, default: 0, min: 0 }

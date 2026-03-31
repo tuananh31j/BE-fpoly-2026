@@ -1,5 +1,4 @@
 import { StatusCodes } from 'http-status-codes';
-import type { NextFunction, Request, Response } from 'express';
 
 import type { Role } from '@/types/domain';
 import { ApiError } from '@utils/api-error';

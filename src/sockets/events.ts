@@ -1,9 +1,10 @@
 import type { Server } from 'socket.io';
+
 import { STAFF_NOTIFICATION_ROOM } from '@services/realtime-notification.service';
 
 export const registerSocketEvents = (io: Server) => {
   io.on('connection', (socket) => {
-     const role = socket.data.user?.role;
+    const role = socket.data.user?.role;
 
     if (role === 'staff' || role === 'admin') {
       socket.join(STAFF_NOTIFICATION_ROOM);
@@ -12,11 +13,13 @@ export const registerSocketEvents = (io: Server) => {
         timestamp: new Date().toISOString()
       });
     }
+
     socket.on('client:ping', () => {
       socket.emit('server:pong', {
         timestamp: new Date().toISOString()
       });
     });
+
     socket.on('staff:notifications:join', () => {
       const userRole = socket.data.user?.role;
 
@@ -24,8 +27,6 @@ export const registerSocketEvents = (io: Server) => {
         socket.join(STAFF_NOTIFICATION_ROOM);
       }
     });
-
-
 
     socket.on('room:join', (payload: { roomId?: string }) => {
       if (!payload?.roomId) {

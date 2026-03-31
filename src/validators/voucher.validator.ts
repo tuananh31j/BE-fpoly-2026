@@ -59,6 +59,19 @@ export const createVoucherSchema = z.object({
         });
       }
 
+      if (
+        value.discountType === 'fixed_amount' &&
+        typeof value.minOrderValue === 'number' &&
+        value.minOrderValue >= 0 &&
+        value.discountValue >= value.minOrderValue
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['discountValue'],
+          message: 'discountValue for fixed amount must be smaller than minOrderValue'
+        });
+      }
+
       if (value.maxUsagePerUser >= value.usageLimit) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -115,6 +128,23 @@ export const updateVoucherSchema = z.object({
           code: z.ZodIssueCode.custom,
           path: ['discountValue'],
           message: 'discountValue for percentage must be <= 100'
+        });
+      }
+
+      const effectiveDiscountType = value.discountType;
+      const effectiveDiscountValue = value.discountValue;
+      const effectiveMinOrderValue = value.minOrderValue;
+
+      if (
+        effectiveDiscountType === 'fixed_amount' &&
+        typeof effectiveDiscountValue === 'number' &&
+        typeof effectiveMinOrderValue === 'number' &&
+        effectiveDiscountValue >= effectiveMinOrderValue
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['discountValue'],
+          message: 'discountValue for fixed amount must be smaller than minOrderValue'
         });
       }
 

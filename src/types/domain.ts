@@ -5,14 +5,13 @@ export type VoucherDiscountType = 'percentage' | 'fixed_amount';
 export type OrderStatus =
   | 'pending'
   | 'confirmed'
-  | 'completed'
   | 'shipping'
   | 'delivered'
+  | 'completed'
   | 'cancelled'
   | 'returned';
 
-export type PaymentMethod = 'cod' | 'banking' | 'momo' | 'vnpay';
-
+export type PaymentMethod = 'cod' | 'banking' | 'momo' | 'vnpay' | 'zalopay';
 export type ZalopayChannel = 'gateway' | 'wallet' | 'bank_card' | 'atm';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';

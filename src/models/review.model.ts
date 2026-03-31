@@ -1,5 +1,5 @@
-import { Schema, model } from 'mongoose';
 import type { Types } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
 export interface ReviewDocument {
   productId: Types.ObjectId;

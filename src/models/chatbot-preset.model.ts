@@ -1,4 +1,4 @@
-import { model, Schema, type Types } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 
 export interface ChatbotPresetDocument {
   question: string;
@@ -45,7 +45,4 @@ const chatbotPresetSchema = new Schema<ChatbotPresetDocument>(
 chatbotPresetSchema.index({ isActive: 1, sortOrder: 1, updatedAt: -1 });
 chatbotPresetSchema.index({ question: 1 });
 
-export const ChatbotPresetModel = model<ChatbotPresetDocument>(
-  'ChatbotPreset',
-  chatbotPresetSchema
-);
+export const ChatbotPresetModel = model<ChatbotPresetDocument>('ChatbotPreset', chatbotPresetSchema);
