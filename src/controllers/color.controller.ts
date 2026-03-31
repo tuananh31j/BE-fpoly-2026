@@ -1,13 +1,15 @@
+import { StatusCodes } from 'http-status-codes';
+
 import {
   createColor,
   deleteColor,
   getColorById,
   listColors,
   updateColor
-} from '@/services/color.service';
-import { asyncHandler } from '@/utils/async-handler';
-import { sendSuccess } from '@/utils/response';
-import { StatusCodes } from 'http-status-codes';
+} from '@services/color.service';
+import { asyncHandler } from '@utils/async-handler';
+import { getParam } from '@utils/request';
+import { sendSuccess } from '@utils/response';
 
 export const listColorsController = asyncHandler(async (req, res) => {
   const data = await listColors({

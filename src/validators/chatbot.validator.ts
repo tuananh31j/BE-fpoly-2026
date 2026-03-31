@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-const objectIdSchema = z
-  .string()
-  .trim()
-  .regex(/^[a-f\d]{24}$/i, 'Invalid ObjectId');
+const objectIdSchema = z.string().trim().regex(/^[a-f\d]{24}$/i, 'Invalid ObjectId');
 
 const chatbotContextSchema = z
   .object({

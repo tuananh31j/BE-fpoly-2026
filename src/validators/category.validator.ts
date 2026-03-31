@@ -18,10 +18,7 @@ export const categoryIdParamSchema = z.object({
 export const createCategorySchema = z.object({
   body: z.object({
     name: z.string().min(1).max(120),
-    slug: z.string().min(1).max(160),
     description: z.string().optional(),
-    parentId: z.string().optional(),
-    image: z.string().url().optional(),
     isActive: z.boolean().optional()
   })
 });
@@ -33,10 +30,7 @@ export const updateCategorySchema = z.object({
   body: z
     .object({
       name: z.string().min(1).max(120).optional(),
-      slug: z.string().min(1).max(160).optional(),
       description: z.string().optional(),
-      parentId: z.string().nullable().optional(),
-      image: z.string().url().optional(),
       isActive: z.boolean().optional()
     })
     .refine((value) => Object.keys(value).length > 0, {

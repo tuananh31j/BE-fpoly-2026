@@ -16,6 +16,7 @@ export const listAdminCommentsSchema = z.object({
     limit: z.string().optional(),
     search: z.string().optional(),
     targetModel: z.literal('product').optional(),
+    targetId: z.string().optional(),
     userId: z.string().optional(),
     isHidden: z.enum(['true', 'false']).optional()
   })

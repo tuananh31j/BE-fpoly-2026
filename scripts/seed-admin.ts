@@ -1,5 +1,6 @@
-import { logger } from '@/config/logger';
 import bcrypt from 'bcryptjs';
+
+import { logger } from '@/config/logger';
 import { connectMongo, disconnectMongo } from '@/config/mongoose';
 import { UserModel } from '@/models/user.model';
 
@@ -28,7 +29,7 @@ const main = async () => {
     loyaltyPoints: 0,
     membershipTier: 'platinum',
     staffDepartment: 'Management',
-    staffStartDate: new Date()
+    staffStartDate: new Date(),
   });
 
   logger.info(`✅ Tạo admin: ${email}`);

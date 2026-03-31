@@ -2,10 +2,10 @@ import { faker } from '@faker-js/faker';
 import bcrypt from 'bcryptjs';
 import type { Types } from 'mongoose';
 
-import { BrandModel } from '@/models/brand.model';
 import { logger } from '@/config/logger';
 import { connectMongo, disconnectMongo } from '@/config/mongoose';
 import { AddressModel } from '@/models/address.model';
+import { BrandModel } from '@/models/brand.model';
 import { CartModel } from '@/models/cart.model';
 import { CategoryModel } from '@/models/category.model';
 import { ColorModel } from '@/models/color.model';
@@ -26,7 +26,6 @@ import type {
   Role,
   VoucherDiscountType
 } from '@/types/domain';
-import { T } from '@faker-js/faker/dist/airline-Dz1uGqgJ';
 
 interface SeedOptions {
   users: number;
@@ -100,6 +99,7 @@ const FIXED_SEED_USERS: Array<{
     role: 'customer'
   }
 ];
+
 const colorPalette = [
   { name: 'Black', hex: '#111111' },
   { name: 'White', hex: '#F5F5F5' },
@@ -210,31 +210,20 @@ const uniqueSuffix = () => `${Date.now()}-${faker.string.alphanumeric(6).toLower
 
 const randomImage = (seed: string) => `https://picsum.photos/seed/${seed}/1000/1000`;
 
-const clearCollections = async () => {
+const dropCollectionIfExists = async (collection: { name: string; drop: () => Promise<unknown> }) => {
   try {
-    await ProductVariantModel.collection.drop();
+    await collection.drop();
   } catch (error) {
     const code = (error as { code?: number })?.code;
+    const message = (error as Error).message?.toLowerCase() ?? '';
 
-    if (code !== 26) {
+    // Ignore "NamespaceNotFound" when collection does not exist yet.
+    if (code !== 26 && !message.includes('ns not found')) {
       throw error;
     }
   }
-
-  await Promise.all([
-    ReviewModel.deleteMany({}),
-    OrderModel.deleteMany({}),
-    CartModel.deleteMany({}),
-    InventoryLogModel.deleteMany({}),
-    ProductModel.deleteMany({}),
-    VoucherModel.deleteMany({}),
-    AddressModel.deleteMany({}),
-    CategoryModel.deleteMany({}),
-    UserModel.deleteMany({}),
-    ColorModel.deleteMany({}),
-    SizeModel.deleteMany({})
-  ]);
 };
+
 const clearCollections = async () => {
   const collections = [
     ReviewModel.collection,
@@ -256,6 +245,7 @@ const clearCollections = async () => {
     await dropCollectionIfExists(collection);
   }
 };
+
 const seedUsers = async (count: number) => {
   if (count === 0) {
     return [];
@@ -282,26 +272,23 @@ const seedUsers = async (count: number) => {
     staffStartDate: account.role !== 'customer' ? faker.date.past() : undefined
   }));
 
-  const randomUserPayloads = Array.from(
-    { length: targetCount - fixedUserPayloads.length },
-    (_, index) => {
-      const idPart = `${index + 1}-${uniqueSuffix()}`;
-      const role = roleCycle[index % roleCycle.length];
+  const randomUserPayloads = Array.from({ length: targetCount - fixedUserPayloads.length }, (_, index) => {
+    const idPart = `${index + 1}-${uniqueSuffix()}`;
+    const role = roleCycle[index % roleCycle.length];
 
-      return {
-        email: `user_${idPart}@example.com`,
-        passwordHash: defaultPasswordHash,
-        fullName: faker.person.fullName(),
-        phone: faker.phone.number({ style: 'international' }),
-        role,
-        avatarUrl: randomImage(`user-${idPart}`),
-        loyaltyPoints: faker.number.int({ min: 0, max: 10000 }),
-        membershipTier: faker.helpers.arrayElement(tierPool),
-        staffDepartment: role !== 'customer' ? faker.commerce.department() : undefined,
-        staffStartDate: role !== 'customer' ? faker.date.past() : undefined
-      };
-    }
-  );
+    return {
+      email: `user_${idPart}@example.com`,
+      passwordHash: defaultPasswordHash,
+      fullName: faker.person.fullName(),
+      phone: faker.phone.number({ style: 'international' }),
+      role,
+      avatarUrl: randomImage(`user-${idPart}`),
+      loyaltyPoints: faker.number.int({ min: 0, max: 10000 }),
+      membershipTier: faker.helpers.arrayElement(tierPool),
+      staffDepartment: role !== 'customer' ? faker.commerce.department() : undefined,
+      staffStartDate: role !== 'customer' ? faker.date.past() : undefined
+    };
+  });
 
   return UserModel.insertMany([...fixedUserPayloads, ...randomUserPayloads]);
 };
@@ -335,15 +322,10 @@ const seedCategories = async (count: number) => {
 
   for (let index = 0; index < count; index += 1) {
     const name = `${faker.commerce.department()} ${index + 1}`;
-    const slug = `${buildSlug(name)}-${uniqueSuffix()}`;
-    const parentCandidate = index > 0 && faker.datatype.boolean() ? categories[0]?._id : undefined;
 
     const created = await CategoryModel.create({
       name,
-      slug,
       description: faker.lorem.sentence(),
-      parentId: parentCandidate,
-      image: randomImage(`category-${slug}`),
       isActive: true
     });
 
@@ -363,21 +345,11 @@ const seedBrands = async (count: number) => {
   for (let index = 0; index < count; index += 1) {
     const fallbackName = `${faker.company.name()} ${index + 1}`;
     const name = featuredBrandNames[index] ?? fallbackName;
-    const baseSlug = buildSlug(name) || `brand-${index + 1}`;
-
-    let candidateSlug = baseSlug;
-    let sequence = 1;
-
-    while (await BrandModel.exists({ slug: candidateSlug })) {
-      candidateSlug = `${baseSlug}-${sequence}`;
-      sequence += 1;
-    }
 
     const created = await BrandModel.create({
       name,
-      slug: candidateSlug,
       description: faker.lorem.sentence(),
-      logoUrl: randomImage(`brand-${candidateSlug}`),
+      logoUrl: randomImage(`brand-${uniqueSuffix()}`),
       isActive: true
     });
 
@@ -403,20 +375,18 @@ const seedProducts = async (
     const name = faker.commerce.productName();
     const idPart = `${index + 1}-${uniqueSuffix()}`;
     const assignedBrand = brands.length > 0 ? faker.helpers.arrayElement(brands) : undefined;
+
     return {
       name,
       categoryId: faker.helpers.arrayElement(categoryIds),
-      description: faker.commerce.productDescription(),
       brandId: assignedBrand?._id,
       brand: assignedBrand?.name ?? faker.company.name(),
+      description: faker.commerce.productDescription(),
       attributes: {
-        brand: faker.company.name(),
         material: faker.commerce.productMaterial()
       },
       images: [randomImage(`product-${idPart}-1`), randomImage(`product-${idPart}-2`)],
       isAvailable: true,
-      metaTitle: `${name} | ${faker.company.name()}`,
-      metaDescription: faker.lorem.sentence(),
       averageRating: 0,
       reviewCount: 0,
       soldCount: 0
@@ -429,7 +399,6 @@ const seedProducts = async (
 const seedColors = async () => {
   const payloads = colorPalette.map((color) => ({
     name: color.name,
-    slug: buildSlug(color.name),
     hexCode: color.hex,
     isActive: true
   }));
@@ -440,7 +409,6 @@ const seedSizes = async () => {
   const sizes = ['S', 'M', 'L', 'XL', 'XXL', 'Standard'];
   const payloads = sizes.map((size) => ({
     name: size,
-    slug: buildSlug(size),
     isActive: true
   }));
   return SizeModel.insertMany(payloads);
@@ -536,7 +504,6 @@ const seedVouchers = async (count: number) => {
       'percentage',
       'fixed_amount'
     ]);
-
     const usageLimit = faker.number.int({ min: 20, max: 500 });
 
     return {
@@ -729,7 +696,7 @@ const buildStatusHistory = (
       status: timelineStatus,
       changedBy: userId,
       note: `Cập nhật trạng thái: ${timelineStatus}`,
-      changedAt: new Date(createdAt.getTime() + Math.round(totalMs + ratio))
+      changedAt: new Date(createdAt.getTime() + Math.round(totalMs * ratio))
     };
   });
 };
@@ -757,6 +724,7 @@ const resolvePaymentStatus = (status: OrderStatus, paymentMethod: PaymentMethod)
 
   return 'pending';
 };
+
 const seedOrders = async (
   count: number,
   customerIds: Types.ObjectId[],
@@ -786,15 +754,7 @@ const seedOrders = async (
     const monthOffset = index % normalizedMonthSpan;
     const monthCursor = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1, 0, 0, 0, 0);
     const monthStart = new Date(monthCursor);
-    const monthEnd = new Date(
-      monthCursor.getFullYear(),
-      monthCursor.getMonth() + 1,
-      0,
-      23,
-      59,
-      0,
-      0
-    );
+    const monthEnd = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0, 23, 59, 0, 0);
     const createdTo = monthOffset === 0 ? latestCreatedAt : monthEnd;
     const createdFrom = monthStart;
     const createdAt = faker.date.between({
@@ -834,7 +794,7 @@ const seedOrders = async (
     const deliveredStatusAt =
       [...statusHistory].reverse().find((history) => history.status === 'delivered')?.changedAt ??
       undefined;
-    const paidAt = paymentStatus === 'paid' ? (deliveredStatusAt ?? updatedAt) : undefined;
+    const paidAt = paymentStatus === 'paid' ? deliveredStatusAt ?? updatedAt : undefined;
     const refundedAt = paymentStatus === 'refunded' ? updatedAt : undefined;
     const paymentTxnRef =
       paymentMethod !== 'cod' && paymentStatus !== 'pending'
@@ -1037,10 +997,12 @@ const main = async () => {
 
   let categories = await seedCategories(options.categories);
   let brands = await seedBrands(options.brands);
+
   if (categories.length === 0 && options.products > 0) {
     const fallback = await seedCategories(1);
     categories = fallback;
   }
+
   if (brands.length === 0 && options.products > 0) {
     const fallback = await seedBrands(1);
     brands = fallback;

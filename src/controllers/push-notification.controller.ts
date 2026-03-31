@@ -1,11 +1,12 @@
+import { StatusCodes } from 'http-status-codes';
+
 import {
   isWebPushConfigured,
   removePushSubscription,
   upsertPushSubscription
-} from '@/services/push-notification.service';
-import { ApiError } from '@/utils/api-error';
-import { asyncHandler } from '@/utils/async-handler';
-import { StatusCodes } from 'http-status-codes';
+} from '@services/push-notification.service';
+import { ApiError } from '@utils/api-error';
+import { asyncHandler } from '@utils/async-handler';
 import { sendSuccess } from '@utils/response';
 import type { Request } from 'express';
 

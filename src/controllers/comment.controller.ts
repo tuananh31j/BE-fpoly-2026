@@ -1,16 +1,17 @@
+import { StatusCodes } from 'http-status-codes';
+
 import {
   createComment,
   deleteComment,
   listAllComments,
   listComments,
   updateCommentVisibility
-} from '@/services/comment.service';
-import { ApiError } from '@/utils/api-error';
-import { asyncHandler } from '@/utils/async-handler';
-import { getOptionalParam, getParam } from '@/utils/response';
-import { StatusCodes } from 'http-status-codes';
-import type { Request } from 'express';
+} from '@services/comment.service';
+import { ApiError } from '@utils/api-error';
+import { asyncHandler } from '@utils/async-handler';
+import { getOptionalParam, getParam } from '@utils/request';
 import { sendSuccess } from '@utils/response';
+import type { Request } from 'express';
 
 const getAuth = (req: Request) => {
   const userId = req.user?.id;

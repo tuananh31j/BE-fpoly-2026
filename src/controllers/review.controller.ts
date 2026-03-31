@@ -1,18 +1,20 @@
-import { ApiError } from '@/utils/api-error';
-import type { Request } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { getOptionalParam, getParam, sendSuccess } from '@utils/response';
-import { asyncHandler } from '@/utils/async-handler';
+
 import {
   createReview,
-  deleteMyReview,
   deleteReviewByStaff,
+  deleteMyReview,
   listAllReviews,
   listReviewsByProduct,
   moderateReview,
   replyReview,
   updateMyReview
-} from '@/services/review.service';
+} from '@services/review.service';
+import { ApiError } from '@utils/api-error';
+import { asyncHandler } from '@utils/async-handler';
+import { getOptionalParam, getParam } from '@utils/request';
+import { sendSuccess } from '@utils/response';
+import type { Request } from 'express';
 
 const getUserId = (req: Request) => {
   const userId = req.user?.id;
@@ -75,6 +77,7 @@ export const updateMyReviewController = asyncHandler(async (req, res) => {
     getParam(req.params.reviewId, 'reviewId'),
     req.body
   );
+
   return sendSuccess(res, {
     message: 'Update review successfully',
     data
@@ -91,10 +94,7 @@ export const deleteMyReviewController = asyncHandler(async (req, res) => {
 });
 
 export const moderateReviewController = asyncHandler(async (req, res) => {
-  const data = await moderateReview(
-    getParam(req.params.reviewId, 'reviewId'),
-    req.body.isPublished
-  );
+  const data = await moderateReview(getParam(req.params.reviewId, 'reviewId'), req.body.isPublished);
 
   return sendSuccess(res, {
     message: 'Moderate review successfully',

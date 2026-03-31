@@ -1,3 +1,5 @@
+import { StatusCodes } from 'http-status-codes';
+
 import {
   completeLesson,
   createCourse,
@@ -13,12 +15,12 @@ import {
   updateCourse,
   updateLesson,
   updateModule
-} from '@/services/lms.service';
-import { ApiError } from '@/utils/api-error';
-import { asyncHandler } from '@/utils/async-handler';
+} from '@services/lms.service';
+import { ApiError } from '@utils/api-error';
+import { asyncHandler } from '@utils/async-handler';
+import { getParam } from '@utils/request';
+import { sendSuccess } from '@utils/response';
 import type { Request } from 'express';
-import { StatusCodes } from 'http-status-codes';
-import { getParam, sendSuccess } from '@utils/response';
 
 const getUserId = (req: Request) => {
   const userId = req.user?.id;
@@ -55,8 +57,8 @@ export const getCourseDetailController = asyncHandler(async (req, res) => {
   });
 });
 
-export const createCourseController = asyncHandler(async (require, res) => {
-  const data = await createCourse(require.body);
+export const createCourseController = asyncHandler(async (req, res) => {
+  const data = await createCourse(req.body);
 
   return sendSuccess(res, {
     statusCode: StatusCodes.CREATED,

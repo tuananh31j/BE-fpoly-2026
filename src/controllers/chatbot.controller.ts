@@ -1,3 +1,5 @@
+import { StatusCodes } from 'http-status-codes';
+
 import {
   askChatbot,
   createChatbotPreset,
@@ -5,11 +7,10 @@ import {
   listActiveChatbotPresets,
   listAdminChatbotPresets,
   updateChatbotPreset
-} from '@/services/chatbot.service';
-import { asyncHandler } from '@/utils/async-handler';
+} from '@services/chatbot.service';
+import { asyncHandler } from '@utils/async-handler';
 import { getParam } from '@utils/request';
 import { sendSuccess } from '@utils/response';
-import { StatusCodes } from 'http-status-codes';
 
 export const listChatbotPresetsController = asyncHandler(async (_req, res) => {
   const data = await listActiveChatbotPresets();

@@ -18,11 +18,7 @@ export const colorIdParamSchema = z.object({
 export const createColorSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(80),
-    slug: z.string().min(1).max(120),
-    hexCode: z
-      .string()
-      .regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)
-      .optional(),
+    hexCode: z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/).optional(),
     isActive: z.boolean().optional()
   })
 });
@@ -34,7 +30,6 @@ export const updateColorSchema = z.object({
   body: z
     .object({
       name: z.string().min(1).max(80).optional(),
-      slug: z.string().min(1).max(120).optional(),
       hexCode: z
         .string()
         .regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)

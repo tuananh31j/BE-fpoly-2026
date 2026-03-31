@@ -18,7 +18,6 @@ export const brandIdParamSchema = z.object({
 export const createBrandSchema = z.object({
   body: z.object({
     name: z.string().min(1).max(120),
-    slug: z.string().min(1).max(140),
     description: z.string().max(500).optional(),
     logoUrl: z.string().max(500).optional(),
     isActive: z.boolean().optional()
@@ -32,9 +31,8 @@ export const updateBrandSchema = z.object({
   body: z
     .object({
       name: z.string().min(1).max(120).optional(),
-      slug: z.string().min(1).max(140).optional(),
-      description: z.string().max(500).optional(),
-      logoUrl: z.string().max(500).optional(),
+      description: z.string().max(500).nullable().optional(),
+      logoUrl: z.string().max(500).nullable().optional(),
       isActive: z.boolean().optional()
     })
     .refine((value) => Object.keys(value).length > 0, {
