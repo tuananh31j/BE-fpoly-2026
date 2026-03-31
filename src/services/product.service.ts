@@ -13,6 +13,8 @@ import { ApiError } from '@utils/api-error';
 import { toObjectId } from '@utils/object-id';
 import { toPaginatedData } from '@utils/pagination';
 
+const MAX_PRODUCT_VARIANTS = 8;
+
 interface ProductPayload {
   name: string;
   categoryId: string;
@@ -113,7 +115,9 @@ const enrichProductsForStorefront = async (products: Array<Record<string, unknow
     const pricingSource = availableVariants.length > 0 ? availableVariants : productVariants;
     const prices = pricingSource.map((variant) => variant.price);
     const thumbnailFromProduct = getFirstImage(product.images);
-    const thumbnailFromVariant = pricingSource.map((variant) => getFirstImage(variant.images)).find(Boolean);
+    const thumbnailFromVariant = pricingSource
+      .map((variant) => getFirstImage(variant.images))
+      .find(Boolean);
 
     return {
       ...product,
@@ -244,7 +248,11 @@ const normalizeSkuToken = (value: string, fallback: string) => {
   return normalized || fallback;
 };
 
-const generateProductVariantSku = async (input: { productName: string; color?: string; size?: string }) => {
+const generateProductVariantSku = async (input: {
+  productName: string;
+  color?: string;
+  size?: string;
+}) => {
   const productToken = normalizeSkuToken(input.productName, 'PRODUCT').slice(0, 12);
   const colorToken = normalizeSkuToken(input.color ?? 'DEFAULT', 'DEFAULT').slice(0, 8);
   const sizeToken = normalizeSkuToken(input.size ?? 'STANDARD', 'STANDARD').slice(0, 8);
@@ -263,15 +271,16 @@ const generateProductVariantSku = async (input: { productName: string; color?: s
   throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Could not generate SKU');
 };
 
-const resolveProductBrandInput = async (
-  payload: { brandId?: string; brand?: string }
-): Promise<{ brandId?: Types.ObjectId; brand: string }> => {
+const resolveProductBrandInput = async (payload: {
+  brandId?: string;
+  brand?: string;
+}): Promise<{ brandId?: Types.ObjectId; brand: string }> => {
   const rawBrandId = payload.brandId?.trim();
 
   if (rawBrandId) {
-    const brand = (await BrandModel.findById(toObjectId(rawBrandId, 'brandId')).lean()) as
-      | BrandSnapshot
-      | null;
+    const brand = (await BrandModel.findById(
+      toObjectId(rawBrandId, 'brandId')
+    ).lean()) as BrandSnapshot | null;
 
     if (!brand || brand.isActive === false) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Brand not found or inactive');
@@ -386,7 +395,9 @@ export const listProducts = async (options: {
 
   if (normalizedColorIds.length > 0 || priceRangeFilters.length > 0) {
     const baseProducts = await ProductModel.find(filters).select('_id').lean();
-    const baseProductIds = baseProducts.map((product) => toObjectId(String(product._id), 'productId'));
+    const baseProductIds = baseProducts.map((product) =>
+      toObjectId(String(product._id), 'productId')
+    );
 
     if (baseProductIds.length === 0) {
       return toPaginatedData([], 0, options.page, options.limit);
@@ -485,13 +496,15 @@ export const listProductFilters = async () => {
   }
 
   const categories = categoryIds.size
-    ? ((await CategoryModel.find({
-        _id: { $in: Array.from(categoryIds) },
-        isActive: true
-      })
-        .select('name')
-        .sort({ name: 1 })
-        .lean()) as StorefrontCategorySnapshot[]).map((category) => ({
+    ? (
+        (await CategoryModel.find({
+          _id: { $in: Array.from(categoryIds) },
+          isActive: true
+        })
+          .select('name')
+          .sort({ name: 1 })
+          .lean()) as StorefrontCategorySnapshot[]
+      ).map((category) => ({
         id: String(category._id),
         name: category.name ?? 'Danh mục'
       }))
@@ -525,13 +538,15 @@ export const listProductFilters = async () => {
 
   const colors =
     colorIds.length > 0
-      ? ((await ColorModel.find({
-          _id: { $in: colorIds },
-          isActive: true
-        })
-          .select('name hexCode')
-          .sort({ name: 1 })
-          .lean()) as StorefrontColorSnapshot[]).map((color) => ({
+      ? (
+          (await ColorModel.find({
+            _id: { $in: colorIds },
+            isActive: true
+          })
+            .select('name hexCode')
+            .sort({ name: 1 })
+            .lean()) as StorefrontColorSnapshot[]
+        ).map((color) => ({
           id: String(color._id),
           name: color.name ?? 'Màu sắc',
           hexCode: color.hexCode
@@ -703,6 +718,15 @@ export const createProductVariant = async (productId: string, payload: ProductVa
 
   if (!product) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
+  }
+
+  const currentVariantCount = await ProductVariantModel.countDocuments({ productId: _productId });
+
+  if (currentVariantCount >= MAX_PRODUCT_VARIANTS) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Product cannot have more than ${MAX_PRODUCT_VARIANTS} variants`
+    );
   }
 
   const normalizedColorId = payload.colorId?.trim();

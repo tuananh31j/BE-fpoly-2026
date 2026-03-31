@@ -12,7 +12,8 @@ const MESSAGE_MAP: Record<string, string> = {
   'endpoint is required': 'Thiếu endpoint',
   'At least one field is required': 'Cần ít nhất một trường',
   'brandId or brand is required': 'Cần brandId hoặc brand',
-  'New password must be different from current password': 'Mật khẩu mới phải khác mật khẩu hiện tại',
+  'New password must be different from current password':
+    'Mật khẩu mới phải khác mật khẩu hiện tại',
   'expirationDate must be greater than startDate': 'Ngày hết hạn phải sau ngày bắt đầu',
   'discountValue for percentage must be <= 100': 'Giá trị giảm theo % phải <= 100',
   'discountValue for fixed amount must be smaller than minOrderValue':
@@ -27,6 +28,7 @@ const MESSAGE_MAP: Record<string, string> = {
     'Thương hiệu đang được sử dụng và không thể xóa',
   'Cannot initialize cart': 'Không thể khởi tạo giỏ hàng',
   'Product not found': 'Không tìm thấy sản phẩm',
+  'Product cannot have more than 8 variants': 'Mỗi sản phẩm chỉ được thêm tối đa 8 biến thể',
   'Variant not found': 'Không tìm thấy biến thể',
   'Variant does not belong to product': 'Biến thể không thuộc sản phẩm',
   'Variant does not belong to order': 'Sản phẩm không thuộc đơn hàng',
@@ -37,8 +39,7 @@ const MESSAGE_MAP: Record<string, string> = {
   'Message not found': 'Không tìm thấy tin nhắn',
   'Voucher not found': 'Không tìm thấy voucher',
   'Order is not eligible for review': 'Đơn hàng không đủ điều kiện đánh giá',
-  'Review already exists for this order and product':
-    'Đơn hàng này đã có đánh giá cho sản phẩm',
+  'Review already exists for this order and product': 'Đơn hàng này đã có đánh giá cho sản phẩm',
   'Review not found': 'Không tìm thấy đánh giá',
   'Order not found': 'Không tìm thấy đơn hàng',
   'Order not found by VNPay transaction': 'Không tìm thấy đơn hàng theo giao dịch VNPay',
