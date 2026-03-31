@@ -4,17 +4,17 @@ import {
   getSizeByIdController,
   listSizesController,
   updateSizeController
-} from '@/controllers/size.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/size.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   createSizeSchema,
   listSizesSchema,
   sizeIdParamSchema,
   updateSizeSchema
-} from '@/validators/size.validator';
+} from '@validators/size.validator';
 import { Router } from 'express';
 
 const sizeRouter = Router();
@@ -29,7 +29,6 @@ sizeRouter.post(
   validate(createSizeSchema),
   createSizeController
 );
-
 sizeRouter.patch(
   '/:sizeId',
   requireBearerAuth,

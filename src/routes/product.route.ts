@@ -4,43 +4,40 @@ import {
   deleteProductController,
   deleteProductVariantController,
   getProductByIdController,
-  listNewestProductsController,
   listProductFiltersController,
+  listNewestProductsController,
   listProductsController,
   listProductVariantsController,
   listTopSellingProductsController,
   updateProductController,
   updateProductVariantController
-} from '@/controllers/product.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/product.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   createProductSchema,
   createVariantSchema,
   featuredProductsSchema,
+  listProductsSchema,
   listProductVariantsSchema,
   productIdParamSchema,
   updateProductSchema,
   updateVariantSchema,
   variantIdParamSchema
-} from '@/validators/product.validator';
+} from '@validators/product.validator';
 import { Router } from 'express';
 
 const productRouter = Router();
 
 productRouter.get(
   '/',
-  validate(listProductVariantsSchema),
+  validate(listProductsSchema),
   parsePaginationMiddleware,
   listProductsController
 );
-productRouter.get(
-  '/top-selling',
-  validate(featuredProductsSchema),
-  listTopSellingProductsController
-);
+productRouter.get('/top-selling', validate(featuredProductsSchema), listTopSellingProductsController);
 productRouter.get('/newest', validate(featuredProductsSchema), listNewestProductsController);
 productRouter.get('/filters', listProductFiltersController);
 productRouter.get('/:productId', validate(productIdParamSchema), getProductByIdController);

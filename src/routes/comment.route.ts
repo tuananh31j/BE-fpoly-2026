@@ -4,18 +4,18 @@ import {
   listAllCommentsController,
   listCommentsController,
   updateCommentVisibilityController
-} from '@/controllers/comment.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/comment.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   commentIdParamSchema,
   createCommentSchema,
   listAdminCommentsSchema,
   listCommentsSchema,
   updateCommentVisibilitySchema
-} from '@/validators/comment.validator';
+} from '@validators/comment.validator';
 import { Router } from 'express';
 
 const commentRouter = Router();
@@ -48,4 +48,5 @@ commentRouter.delete(
   validate(commentIdParamSchema),
   deleteCommentController
 );
+
 export default commentRouter;

@@ -5,16 +5,16 @@ import {
   listAdminChatbotPresetsController,
   listChatbotPresetsController,
   updateChatbotPresetController
-} from '@/controllers/chatbot.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/chatbot.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   askChatbotSchema,
   chatbotPresetParamSchema,
   createChatbotPresetSchema,
   updateChatbotPresetSchema
-} from '@/validators/chatbot.validator';
+} from '@validators/chatbot.validator';
 import { Router } from 'express';
 
 const chatbotRouter = Router();
@@ -28,7 +28,6 @@ chatbotRouter.get(
   requireRoles('admin'),
   listAdminChatbotPresetsController
 );
-
 chatbotRouter.post(
   '/admin/presets',
   requireBearerAuth,
@@ -36,7 +35,6 @@ chatbotRouter.post(
   validate(createChatbotPresetSchema),
   createChatbotPresetController
 );
-
 chatbotRouter.patch(
   '/admin/presets/:presetId',
   requireBearerAuth,
@@ -44,7 +42,6 @@ chatbotRouter.patch(
   validate(chatbotPresetParamSchema.merge(updateChatbotPresetSchema)),
   updateChatbotPresetController
 );
-
 chatbotRouter.delete(
   '/admin/presets/:presetId',
   requireBearerAuth,
@@ -52,4 +49,5 @@ chatbotRouter.delete(
   validate(chatbotPresetParamSchema),
   deleteChatbotPresetController
 );
+
 export default chatbotRouter;

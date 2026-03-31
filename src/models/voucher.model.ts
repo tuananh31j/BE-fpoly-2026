@@ -37,6 +37,4 @@ const voucherSchema = new Schema<VoucherDocument>(
   { timestamps: true }
 );
 
-voucherSchema.index({ code: 1 }, { unique: true });
-
 export const VoucherModel = model<VoucherDocument>('Voucher', voucherSchema);

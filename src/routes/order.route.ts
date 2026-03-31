@@ -1,41 +1,41 @@
 import {
   cancelMyOrderController,
   confirmOrderReceivedController,
+  createCancelRefundRequestController,
   createOrderController,
   createReturnRequestController,
-  getMyOrderByIdController,
   getOrderStatisticsController,
+  getMyOrderByIdController,
   handleZalopayCallbackController,
+  verifyZalopayRedirectController,
   listAllOrdersController,
   listMyOrdersController,
-  updateReturnRequestController
   retryMyVnpayPaymentController,
+  updateCancelRefundRequestController,
+  updateReturnRequestController,
   updateOrderStatusController,
-  verifyVnpayReturnController,
-  verifyZalopayRedirectController,
-  createCancelRefundRequestController,
-  updateCancelRefundRequestController
-} from '@/controllers/order.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+  verifyVnpayReturnController
+} from '@controllers/order.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   cancelOrderSchema,
+  createCancelRefundRequestSchema,
   createOrderSchema,
   listOrdersSchema,
+  orderStatisticsSchema,
   orderIdParamSchema,
+  repayVnpayOrderSchema,
+  updateCancelRefundRequestSchema,
+  updateOrderStatusSchema,
   createReturnRequestSchema,
   updateReturnRequestSchema,
-  orderStatisticsSchema,
-  repayVnpayOrderSchema,
-  updateOrderStatusSchema,
-  verifyVnpayReturnSchema,
   verifyZalopayCallbackSchema,
   verifyZalopayRedirectSchema,
-  createCancelRefundRequestSchema,
-  updateCancelRefundRequestSchema
-} from '@/validators/order.validator';
+  verifyVnpayReturnSchema
+} from '@validators/order.validator';
 import { Router } from 'express';
 
 const orderRouter = Router();
@@ -46,14 +46,14 @@ orderRouter.post(
   verifyVnpayReturnController
 );
 orderRouter.post(
-  '/zalopay/callback',
-  validate(verifyZalopayCallbackSchema),
-  handleZalopayCallbackController
-);
-orderRouter.post(
   '/zalopay/verify-redirect',
   validate(verifyZalopayRedirectSchema),
   verifyZalopayRedirectController
+);
+orderRouter.post(
+  '/zalopay/callback',
+  validate(verifyZalopayCallbackSchema),
+  handleZalopayCallbackController
 );
 orderRouter.use(requireBearerAuth);
 orderRouter.post('/', validate(createOrderSchema), createOrderController);
@@ -74,13 +74,6 @@ orderRouter.get(
 );
 orderRouter.get('/:orderId', validate(orderIdParamSchema), getMyOrderByIdController);
 orderRouter.post('/:orderId/cancel', validate(cancelOrderSchema), cancelMyOrderController);
-orderRouter.post('/:orderId/repay', validate(repayVnpayOrderSchema), retryMyVnpayPaymentController);
-orderRouter.patch(
-  '/:orderId/status',
-  requireRoles('staff', 'admin'),
-  validate(updateOrderStatusSchema),
-  updateOrderStatusController
-);
 orderRouter.post(
   '/:orderId/received',
   validate(orderIdParamSchema),

@@ -13,11 +13,11 @@ import {
   updateCourseController,
   updateLessonController,
   updateModuleController
-} from '@/controllers/lms.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/lms.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   completeLessonSchema,
   courseIdParamSchema,
@@ -32,7 +32,7 @@ import {
   updateCourseSchema,
   updateLessonSchema,
   updateModuleSchema
-} from '@/validators/lms.validator';
+} from '@validators/lms.validator';
 import { Router } from 'express';
 
 const lmsRouter = Router();

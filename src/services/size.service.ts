@@ -1,13 +1,13 @@
-import { ProductVariantModel } from '@/models/product-variant.model';
-import { SizeModel } from '@/models/size.model';
-import { ApiError } from '@/utils/api-error';
-import { toObjectId } from '@/utils/object-id';
-import { toPaginatedData } from '@/utils/pagination';
 import { StatusCodes } from 'http-status-codes';
+
+import { ProductVariantModel } from '@models/product-variant.model';
+import { SizeModel } from '@models/size.model';
+import { ApiError } from '@utils/api-error';
+import { toObjectId } from '@utils/object-id';
+import { toPaginatedData } from '@utils/pagination';
 
 interface SizePayload {
   name: string;
-  slug: string;
   isActive?: boolean;
 }
 
@@ -25,7 +25,7 @@ export const listSizes = async (options: {
 
   if (options.search?.trim()) {
     const regex = new RegExp(options.search.trim(), 'i');
-    filters.$or = [{ name: regex }, { slug: regex }];
+    filters.$or = [{ name: regex }];
   }
 
   const totalItems = await SizeModel.countDocuments(filters);
@@ -51,7 +51,6 @@ export const getSizeById = async (sizeId: string) => {
 export const createSize = async (payload: SizePayload) => {
   const created = await SizeModel.create({
     name: payload.name,
-    slug: payload.slug,
     isActive: payload.isActive ?? true
   });
 
@@ -76,7 +75,9 @@ export const updateSize = async (sizeId: string, payload: Partial<SizePayload>) 
 
 export const deleteSize = async (sizeId: string) => {
   const _sizeId = toObjectId(sizeId, 'sizeId');
-  const existsInVariant = await ProductVariantModel.exists({ sizeId: _sizeId });
+  const existsInVariant = await ProductVariantModel.exists({
+    sizeId: _sizeId
+  });
 
   if (existsInVariant) {
     throw new ApiError(

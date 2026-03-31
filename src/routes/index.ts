@@ -1,17 +1,44 @@
+import addressRouter from '@routes/address.route';
 import authRouter from '@routes/auth.route';
-import healthRouter from '@routes/health.route';
-import { Router } from 'express';
+import brandRouter from '@routes/brand.route';
+import cartRouter from '@routes/cart.route';
 import categoryRouter from '@routes/category.route';
-import chatbotRouter from '@routes/chatbot.route';
-import pushNotificationRouter from '@routes/pushNotification.route';
 import chatRouter from '@routes/chat.route';
+import chatbotRouter from '@routes/chatbot.route';
+import colorRouter from '@routes/color.route';
+import commentRouter from '@routes/comment.route';
+import healthRouter from '@routes/health.route';
+import mailRouter from '@routes/mail.route';
+import orderRouter from '@routes/order.route';
+import productRouter from '@routes/product.route';
+import pushNotificationRouter from '@routes/push-notification.route';
+import reviewRouter from '@routes/review.route';
+import sizeRouter from '@routes/size.route';
+import uploadRouter from '@routes/upload.route';
+import userRouter from '@routes/user.route';
+import voucherRouter from '@routes/voucher.route';
+import { Router } from 'express';
+
 const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
-
+apiRouter.use('/cart', cartRouter);
+apiRouter.use('/addresses', addressRouter);
+apiRouter.use('/brands', brandRouter);
 apiRouter.use('/categories', categoryRouter);
 apiRouter.use('/chat', chatRouter);
 apiRouter.use('/chatbot', chatbotRouter);
+apiRouter.use('/colors', colorRouter);
+apiRouter.use('/products', productRouter);
+apiRouter.use('/sizes', sizeRouter);
+apiRouter.use('/reviews', reviewRouter);
+apiRouter.use('/comments', commentRouter);
+apiRouter.use('/mail', mailRouter);
+apiRouter.use('/orders', orderRouter);
 apiRouter.use('/notifications', pushNotificationRouter);
+apiRouter.use('/upload', uploadRouter);
+apiRouter.use('/users', userRouter);
+apiRouter.use('/vouchers', voucherRouter);
+
 export default apiRouter;

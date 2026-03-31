@@ -1,12 +1,13 @@
-import { OrderModel } from '@/models/order.model';
-import { ProductModel } from '@/models/product.model';
-import { ReviewModel } from '@/models/review.model';
-import { ApiError } from '@/utils/api-error';
-import { toObjectId } from '@/utils/object-id';
-import { toPaginatedData } from '@/utils/pagination';
 import { StatusCodes } from 'http-status-codes';
+
+import { OrderModel } from '@models/order.model';
+import { ProductModel } from '@models/product.model';
+import { ReviewModel } from '@models/review.model';
 import { UserModel } from '@models/user.model';
 import { emitStaffRealtimeNotification } from '@services/realtime-notification.service';
+import { ApiError } from '@utils/api-error';
+import { toObjectId } from '@utils/object-id';
+import { toPaginatedData } from '@utils/pagination';
 
 interface CreateReviewInput {
   orderId: string;
@@ -67,6 +68,7 @@ const mapReviewUser = (rawUser: unknown) => {
   };
 };
 
+// worklog: 2026-03-04 19:12:59 | vanduc | feature | mapReviewProduct
 const mapReviewProduct = (rawProduct: unknown) => {
   if (!rawProduct || typeof rawProduct !== 'object' || !('_id' in rawProduct)) {
     return {
@@ -101,6 +103,7 @@ const buildReviewSearchFilter = (search?: string) => {
   };
 };
 
+// worklog: 2026-03-04 21:58:50 | dung | cleanup | recalculateProductRating
 const recalculateProductRating = async (productId: string) => {
   const _productId = toObjectId(productId, 'productId');
   const stats = await ReviewModel.aggregate<{ averageRating: number; reviewCount: number }>([
@@ -168,6 +171,7 @@ export const listReviewsByProduct = async (
   return toPaginatedData(enrichedItems, totalItems, options.page, options.limit);
 };
 
+// worklog: 2026-03-04 13:34:35 | vanduc | feature | listAllReviews
 export const listAllReviews = async (options: ListAllReviewsInput) => {
   const filters: Record<string, unknown> = {};
 
@@ -222,6 +226,7 @@ export const listAllReviews = async (options: ListAllReviewsInput) => {
   return toPaginatedData(enrichedItems, totalItems, options.page, options.limit);
 };
 
+// worklog: 2026-03-04 17:01:54 | vanduc | fix | createReview
 export const createReview = async (userId: string, payload: CreateReviewInput) => {
   const _userId = toObjectId(userId, 'userId');
   const _orderId = toObjectId(payload.orderId, 'orderId');
@@ -266,6 +271,7 @@ export const createReview = async (userId: string, payload: CreateReviewInput) =
   });
 
   await recalculateProductRating(payload.productId);
+
   const [author, product] = await Promise.all([
     UserModel.findById(_userId).select('fullName email').lean(),
     ProductModel.findById(_productId).select('name').lean()
@@ -357,6 +363,7 @@ export const moderateReview = async (reviewId: string, isPublished: boolean) => 
   return review.toObject();
 };
 
+// worklog: 2026-03-04 20:27:39 | dung | feature | deleteReviewByStaff
 export const deleteReviewByStaff = async (reviewId: string) => {
   const deleted = await ReviewModel.findByIdAndDelete(toObjectId(reviewId, 'reviewId')).lean();
 
@@ -371,6 +378,7 @@ export const deleteReviewByStaff = async (reviewId: string) => {
   };
 };
 
+// worklog: 2026-03-04 09:35:15 | dung | refactor | replyReview
 export const replyReview = async (reviewId: string, userId: string, replyContent: string) => {
   const updated = await ReviewModel.findByIdAndUpdate(
     toObjectId(reviewId, 'reviewId'),

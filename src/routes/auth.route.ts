@@ -39,4 +39,5 @@ authRouter.post(
   validate(changePasswordSchema),
   changePasswordController
 );
+
 export default authRouter;

@@ -1,13 +1,13 @@
-import { CommentModel } from '@/models/comment.model';
-import { ProductModel } from '@/models/product.model';
-import { CommentTargetModel, Role } from '@/types/domain';
-import { ApiError } from '@/utils/api-error';
-import { toObjectId } from '@/utils/object-id';
-import { toPaginatedData } from '@/utils/pagination';
 import { StatusCodes } from 'http-status-codes';
+
+import type { CommentTargetModel, Role } from '@/types/domain';
+import { CommentModel } from '@models/comment.model';
+import { ProductModel } from '@models/product.model';
 import { UserModel } from '@models/user.model';
 import { emitStaffRealtimeNotification } from '@services/realtime-notification.service';
-
+import { ApiError } from '@utils/api-error';
+import { toObjectId } from '@utils/object-id';
+import { toPaginatedData } from '@utils/pagination';
 
 interface CreateCommentInput {
   targetId: string;
@@ -80,11 +80,12 @@ const ensureTargetExists = async (targetId: string) => {
   if (!product) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Product not found');
   }
+
   return product;
 };
 
 export const createComment = async (userId: string, payload: CreateCommentInput) => {
-   const product = await ensureTargetExists(payload.targetId);
+  const product = await ensureTargetExists(payload.targetId);
 
   if (payload.parentId) {
     const parent = await CommentModel.findById(toObjectId(payload.parentId, 'parentId')).lean();
@@ -112,6 +113,7 @@ export const createComment = async (userId: string, payload: CreateCommentInput)
     parentId: payload.parentId ? toObjectId(payload.parentId, 'parentId') : undefined,
     isHidden: false
   });
+
   const author = await UserModel.findById(toObjectId(userId, 'userId'))
     .select('fullName email')
     .lean();
@@ -220,7 +222,7 @@ export const listAllComments = async (options: ListAllCommentsInput) => {
   const products =
     productTargetIds.size > 0
       ? await ProductModel.find(
-          {
+        {
             _id: {
               $in: [...productTargetIds].map((targetId) => toObjectId(targetId, 'targetId'))
             }
@@ -233,17 +235,13 @@ export const listAllComments = async (options: ListAllCommentsInput) => {
       : [];
 
   const productMap = new Map<string, CommentTargetProductSnapshot>(
-    products.map((product) => [
-      String(product._id),
-      product as unknown as CommentTargetProductSnapshot
-    ])
+    products.map((product) => [String(product._id), product as unknown as CommentTargetProductSnapshot])
   );
 
   const enrichedItems = (items as unknown as Array<Record<string, unknown>>).map((item) => {
     const userInfo = mapCommentUser(item.userId);
     const targetModel: CommentTargetModel = 'product';
     const targetId = String(item.targetId ?? '');
-
     const target = productMap.get(targetId);
 
     return {

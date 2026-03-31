@@ -1,9 +1,9 @@
-import { env } from '@/config/env';
-import { logger } from '@/config/logger';
-import { PushSubscriptionModel } from '@/models/push-subscription.model';
-import type { Role } from '@/types/domain';
-import { title } from 'node:process';
+import { env } from '@config/env';
+import { logger } from '@config/logger';
+import { PushSubscriptionModel } from '@models/push-subscription.model';
 import webpush from 'web-push';
+
+import type { Role } from '@/types/domain';
 
 interface PushSubscriptionPayload {
   endpoint: string;

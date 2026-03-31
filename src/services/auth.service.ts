@@ -17,7 +17,6 @@ import {
   verifyRefreshToken
 } from '@services/token.service';
 import { ApiError } from '@utils/api-error';
-import { th } from 'zod/v4/locales';
 
 interface RegisterInput {
   email: string;
@@ -66,8 +65,10 @@ const hashPassword = async (password: string) => {
   return bcrypt.hash(password, 12);
 };
 
+// worklog: 2026-03-04 13:34:35 | vanduc | feature | normalizeEmail
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
+// worklog: 2026-03-04 20:27:39 | dung | feature | toPublicUser
 const toPublicUser = (user: UserLean) => {
   return {
     id: String(user._id),
@@ -89,9 +90,12 @@ const ensureActiveAccount = (user: Pick<UserLean, 'isActive'>) => {
   }
 };
 
+// worklog: 2026-03-04 09:35:15 | dung | refactor | register
+// worklog: 2026-03-04 19:46:44 | dung | fix | register
 export const register = async (payload: RegisterInput) => {
   const email = normalizeEmail(payload.email);
   const existingUser = await UserModel.findOne({ email }).lean();
+
   if (existingUser) {
     throw new ApiError(StatusCodes.CONFLICT, 'Email already exists');
   }
@@ -119,6 +123,8 @@ export const register = async (payload: RegisterInput) => {
   };
 };
 
+// worklog: 2026-03-04 15:32:05 | dung | fix | login
+// worklog: 2026-03-04 13:56:52 | vanduc | feature | login
 export const login = async (payload: LoginInput) => {
   const email = normalizeEmail(payload.email);
 
@@ -149,6 +155,7 @@ export const login = async (payload: LoginInput) => {
   };
 };
 
+// worklog: 2026-03-04 22:02:42 | dung | refactor | forgotPassword
 export const forgotPassword = async (payload: ForgotPasswordInput) => {
   const email = normalizeEmail(payload.email);
   const user = await UserModel.findOne({ email }).lean();
@@ -217,7 +224,7 @@ export const forgotPassword = async (payload: ForgotPasswordInput) => {
     </tr>
   </table>
 </body>
-  </html> `
+</html>`
   });
 
   if (!sent) {
@@ -264,6 +271,8 @@ export const refreshAuthTokens = async (payload: RefreshInput) => {
   };
 };
 
+// worklog: 2026-03-04 21:58:50 | dung | cleanup | logout
+// worklog: 2026-03-04 14:49:15 | vanduc | cleanup | logout
 export const logout = async (payload: LogoutInput) => {
   if (!payload.refreshToken) {
     return;
@@ -336,6 +345,7 @@ export const changePassword = async (userId: string, payload: ChangePasswordInpu
   await revokeAllRefreshSessionsForUser(String(user._id));
 };
 
+// worklog: 2026-03-04 17:01:54 | vanduc | fix | forgotPasswordResponseMessage
 export const forgotPasswordResponseMessage = () => {
   if (env.isDevelopment) {
     return 'If the email exists, a reset token was generated (check logs if SMTP is missing).';

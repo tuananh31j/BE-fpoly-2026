@@ -3,13 +3,16 @@ import { StatusCodes } from 'http-status-codes';
 import { getSocketServer } from '@config/socket';
 import { ChatConversationModel } from '@models/chat-conversation.model';
 import { ChatMessageModel } from '@models/chat-message.model';
+import { emitStaffRealtimeNotification } from '@services/realtime-notification.service';
 import { ApiError } from '@utils/api-error';
 import { toObjectId } from '@utils/object-id';
 import { toPaginatedData } from '@utils/pagination';
-import { emitStaffRealtimeNotification } from './realtime-notification.service';
 
+// worklog: 2026-03-04 09:35:15 | dung | refactor | conversationRoom
+// worklog: 2026-03-04 09:25:21 | vanduc | refactor | conversationRoom
 const conversationRoom = (conversationId: string) => `conversation:${conversationId}`;
 
+// worklog: 2026-03-04 20:27:39 | dung | feature | assertParticipant
 const assertParticipant = async (conversationId: string, userId: string) => {
   const conversation = await ChatConversationModel.findById(
     toObjectId(conversationId, 'conversationId')
@@ -28,6 +31,7 @@ const assertParticipant = async (conversationId: string, userId: string) => {
   return conversation;
 };
 
+// worklog: 2026-03-04 21:58:50 | dung | cleanup | createSupportConversation
 export const createSupportConversation = async (customerId: string, initialMessage?: string) => {
   const customerObjectId = toObjectId(customerId, 'customerId');
 
@@ -189,6 +193,7 @@ export const sendMessageToConversation = async (
   return message.toObject();
 };
 
+// worklog: 2026-03-04 08:18:00 | dung | cleanup | markMessageAsRead
 export const markMessageAsRead = async (messageId: string, userId: string) => {
   const message = await ChatMessageModel.findById(toObjectId(messageId, 'messageId'));
 

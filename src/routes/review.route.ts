@@ -1,26 +1,26 @@
 import {
   createReviewController,
-  deleteMyReviewController,
   deleteReviewByStaffController,
+  deleteMyReviewController,
   listAllReviewsController,
   listReviewsByProductController,
   moderateReviewController,
   replyReviewController,
   updateMyReviewController
-} from '@/controllers/review.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/review.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   createReviewSchema,
   listAdminReviewsSchema,
   listReviewsSchema,
-  modernateReviewSchema,
+  moderateReviewSchema,
   replyReviewSchema,
   reviewIdParamSchema,
   updateReviewSchema
-} from '@/validators/review.validator';
+} from '@validators/review.validator';
 import { Router } from 'express';
 
 const reviewRouter = Router();
@@ -56,7 +56,7 @@ reviewRouter.patch(
   '/:reviewId/moderate',
   requireBearerAuth,
   requireRoles('staff', 'admin'),
-  validate(modernateReviewSchema),
+  validate(moderateReviewSchema),
   moderateReviewController
 );
 reviewRouter.patch(

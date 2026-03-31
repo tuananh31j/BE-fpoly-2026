@@ -1,11 +1,12 @@
-import { CourseModel } from '@/models/course.model';
-import { EmployeeProgressModel } from '@/models/employee-progress.model';
-import { LessonModel } from '@/models/lesson.model';
-import { ModuleModel } from '@/models/module.model';
-import { ApiError } from '@/utils/api-error';
-import { toObjectId } from '@/utils/object-id';
-import { toPaginatedData } from '@/utils/pagination';
 import { StatusCodes } from 'http-status-codes';
+
+import { CourseModel } from '@models/course.model';
+import { EmployeeProgressModel } from '@models/employee-progress.model';
+import { LessonModel } from '@models/lesson.model';
+import { ModuleModel } from '@models/module.model';
+import { ApiError } from '@utils/api-error';
+import { toObjectId } from '@utils/object-id';
+import { toPaginatedData } from '@utils/pagination';
 
 interface CoursePayload {
   title: string;
@@ -47,7 +48,7 @@ export const listCourses = async (options: { page: number; limit: number; isActi
 
   const totalItems = await CourseModel.countDocuments(filters);
   const items = await CourseModel.find(filters)
-    .sort({ createAt: -1 })
+    .sort({ createdAt: -1 })
     .skip((options.page - 1) * options.limit)
     .limit(options.limit)
     .lean();
@@ -362,7 +363,7 @@ export const completeLesson = async (userId: string, courseId: string, lessonId:
     progress.status = 'completed';
     progress.completedAt = new Date();
   } else {
-    progress.status = 'completed';
+    progress.status = 'in_progress';
     progress.completedAt = undefined;
   }
 

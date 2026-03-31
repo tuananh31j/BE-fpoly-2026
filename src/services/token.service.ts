@@ -102,6 +102,7 @@ const createRefreshToken = (userId: string) => {
   return { token, jti };
 };
 
+// worklog: 2026-03-04 21:58:50 | dung | cleanup | createPasswordResetToken
 const createPasswordResetToken = (payload: { userId: string; email: string }) => {
   const jti = crypto.randomUUID();
   const token = signJwt(
@@ -120,6 +121,7 @@ const createPasswordResetToken = (payload: { userId: string; email: string }) =>
   return { token, jti };
 };
 
+// worklog: 2026-03-04 14:33:49 | vanduc | fix | storeRefreshSession
 export const storeRefreshSession = async (_userId: string, _jti: string) => {
   return;
 };
@@ -132,6 +134,7 @@ export const revokeAllRefreshSessionsForUser = async (_userId: string) => {
   return;
 };
 
+// worklog: 2026-03-04 20:27:39 | dung | feature | issueAuthTokens
 export const issueAuthTokens = async (payload: { userId: string; email: string; role: Role }) => {
   const accessToken = createAccessToken(payload);
   const refresh = createRefreshToken(payload.userId);
@@ -170,6 +173,7 @@ export const verifyRefreshToken = (token: string) => {
   return payload;
 };
 
+// worklog: 2026-03-04 17:01:54 | vanduc | fix | rotateRefreshToken
 export const rotateRefreshToken = async (refreshToken: string) => {
   const payload = verifyRefreshToken(refreshToken);
   const rotated = createRefreshToken(payload.sub);
@@ -180,6 +184,7 @@ export const rotateRefreshToken = async (refreshToken: string) => {
   };
 };
 
+// worklog: 2026-03-04 19:46:44 | dung | fix | consumePasswordResetToken
 export const consumePasswordResetToken = async (token: string) => {
   const payload = verifyJwt<PasswordResetTokenPayload>(token, env.JWT_RESET_SECRET);
 

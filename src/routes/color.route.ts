@@ -4,17 +4,17 @@ import {
   getColorByIdController,
   listColorsController,
   updateColorController
-} from '@/controllers/color.controller';
-import { requireBearerAuth } from '@/middlewares/auth.middleware';
-import { parsePaginationMiddleware } from '@/middlewares/pagination.middleware';
-import { requireRoles } from '@/middlewares/rbac.middleware';
-import { validate } from '@/middlewares/validate.middleware';
+} from '@controllers/color.controller';
+import { requireBearerAuth } from '@middlewares/auth.middleware';
+import { parsePaginationMiddleware } from '@middlewares/pagination.middleware';
+import { requireRoles } from '@middlewares/rbac.middleware';
+import { validate } from '@middlewares/validate.middleware';
 import {
   colorIdParamSchema,
   createColorSchema,
   listColorsSchema,
   updateColorSchema
-} from '@/validators/color.validator';
+} from '@validators/color.validator';
 import { Router } from 'express';
 
 const colorRouter = Router();

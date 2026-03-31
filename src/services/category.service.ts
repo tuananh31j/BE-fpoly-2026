@@ -1,17 +1,14 @@
 import { StatusCodes } from 'http-status-codes';
-import { ProductModel } from '@models/product.model';
 
 import { CategoryModel } from '@models/category.model';
+import { ProductModel } from '@models/product.model';
 import { ApiError } from '@utils/api-error';
 import { toObjectId } from '@utils/object-id';
 import { toPaginatedData } from '@utils/pagination';
 
 interface CategoryPayload {
   name: string;
-  slug: string;
   description?: string;
-  parentId?: string;
-  image?: string;
   isActive?: boolean;
 }
 
@@ -29,7 +26,7 @@ export const listCategories = async (options: {
 
   if (options.search?.trim()) {
     const regex = new RegExp(options.search.trim(), 'i');
-    filters.$or = [{ name: regex }, { slug: regex }];
+    filters.$or = [{ name: regex }];
   }
 
   const totalItems = await CategoryModel.countDocuments(filters);
@@ -55,10 +52,7 @@ export const getCategoryById = async (categoryId: string) => {
 export const createCategory = async (payload: CategoryPayload) => {
   const created = await CategoryModel.create({
     name: payload.name,
-    slug: payload.slug,
     description: payload.description,
-    parentId: payload.parentId ? toObjectId(payload.parentId, 'parentId') : undefined,
-    image: payload.image,
     isActive: payload.isActive ?? true
   });
 
@@ -69,10 +63,6 @@ export const updateCategory = async (categoryId: string, payload: Partial<Catego
   const updateData: Record<string, unknown> = {
     ...payload
   };
-
-  if (payload.parentId !== undefined) {
-    updateData.parentId = payload.parentId ? toObjectId(payload.parentId, 'parentId') : undefined;
-  }
 
   const updated = await CategoryModel.findByIdAndUpdate(
     toObjectId(categoryId, 'categoryId'),

@@ -3,18 +3,21 @@ import { StatusCodes } from 'http-status-codes';
 import type { OrderStatus } from '@/types/domain';
 import {
   cancelMyOrder,
+  createCancelRefundRequest,
+  createOrderFromCart,
+  confirmOrderReceived,
+  createReturnRequest,
+  handleZalopayCallback,
+  handleZalopayRedirect,
   handleVnpayReturn,
   getOrderStatistics,
   getMyOrderById,
   listAllOrders,
   listMyOrders,
   retryMyVnpayPayment,
-  updateOrderStatus,
-  handleZalopayRedirect,
-  handleZalopayCallback,
-  createCancelRefundRequest,
+  updateCancelRefundRequest,
   updateReturnRequest,
-  updateCancelRefundRequest
+  updateOrderStatus
 } from '@services/order.service';
 import { ApiError } from '@utils/api-error';
 import { asyncHandler } from '@utils/async-handler';
@@ -32,6 +35,7 @@ const getUserId = (req: Request) => {
   return userId;
 };
 
+// worklog: 2026-03-04 20:35:23 | dung | feature | getClientIpAddress
 const getClientIpAddress = (req: Request) => {
   const xForwardedFor = req.headers['x-forwarded-for'];
 
@@ -70,6 +74,46 @@ export const listMyOrdersController = asyncHandler(async (req, res) => {
     data
   });
 });
+
+export const listAllOrdersController = asyncHandler(async (req, res) => {
+  const data = await listAllOrders({
+    page: res.locals.pagination?.page ?? 1,
+    limit: res.locals.pagination?.limit ?? 20,
+    search: getOptionalParam(req.query.search as string | string[] | undefined),
+    status: getOptionalParam(req.query.status as string | string[] | undefined) as
+      | OrderStatus
+      | undefined,
+    userId: getOptionalParam(req.query.userId as string | string[] | undefined)
+  });
+
+  return sendSuccess(res, {
+    message: 'Get all orders successfully',
+    data
+  });
+});
+
+export const getMyOrderByIdController = asyncHandler(async (req, res) => {
+  const data = await getMyOrderById(getUserId(req), getParam(req.params.orderId, 'orderId'));
+
+  return sendSuccess(res, {
+    message: 'Get order successfully',
+    data
+  });
+});
+
+export const cancelMyOrderController = asyncHandler(async (req, res) => {
+  const data = await cancelMyOrder(
+    getUserId(req),
+    getParam(req.params.orderId, 'orderId'),
+    req.body?.note
+  );
+
+  return sendSuccess(res, {
+    message: 'Cancel order successfully',
+    data
+  });
+});
+
 export const confirmOrderReceivedController = asyncHandler(async (req, res) => {
   const data = await confirmOrderReceived(getUserId(req), getParam(req.params.orderId, 'orderId'));
 
@@ -142,45 +186,6 @@ export const updateCancelRefundRequestController = asyncHandler(async (req, res)
   });
 });
 
-export const listAllOrdersController = asyncHandler(async (req, res) => {
-  const data = await listAllOrders({
-    page: res.locals.pagination?.page ?? 1,
-    limit: res.locals.pagination?.limit ?? 20,
-    search: getOptionalParam(req.query.search as string | string[] | undefined),
-    status: getOptionalParam(req.query.status as string | string[] | undefined) as
-      | OrderStatus
-      | undefined,
-    userId: getOptionalParam(req.query.userId as string | string[] | undefined)
-  });
-
-  return sendSuccess(res, {
-    message: 'Get all orders successfully',
-    data
-  });
-});
-
-export const getMyOrderByIdController = asyncHandler(async (req, res) => {
-  const data = await getMyOrderById(getUserId(req), getParam(req.params.orderId, 'orderId'));
-
-  return sendSuccess(res, {
-    message: 'Get order successfully',
-    data
-  });
-});
-
-export const cancelMyOrderController = asyncHandler(async (req, res) => {
-  const data = await cancelMyOrder(
-    getUserId(req),
-    getParam(req.params.orderId, 'orderId'),
-    req.body?.note
-  );
-
-  return sendSuccess(res, {
-    message: 'Cancel order successfully',
-    data
-  });
-});
-
 export const retryMyVnpayPaymentController = asyncHandler(async (req, res) => {
   const data = await retryMyVnpayPayment({
     userId: getUserId(req),
@@ -214,7 +219,6 @@ export const verifyZalopayRedirectController = asyncHandler(async (req, res) => 
 
 export const handleZalopayCallbackController = asyncHandler(async (req, res) => {
   const data = await handleZalopayCallback(req.body as Record<string, unknown>);
-
   return res.status(StatusCodes.OK).json(data);
 });
 
@@ -234,9 +238,7 @@ export const updateOrderStatusController = asyncHandler(async (req, res) => {
 
 export const getOrderStatisticsController = asyncHandler(async (req, res) => {
   const daysRaw = Number(req.query.days);
-  const normalizedDays = Number.isFinite(daysRaw)
-    ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90)
-    : 7;
+  const normalizedDays = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90) : 7;
   const data = await getOrderStatistics({
     days: normalizedDays
   });

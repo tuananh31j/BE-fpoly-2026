@@ -1,10 +1,11 @@
-import { InventoryLogModel } from '@/models/inventory-log.model';
-import { ProductVariantModel } from '@/models/product-variant.model';
-import { InventoryReason } from '@/types/domain';
-import { ApiError } from '@/utils/api-error';
-import { toObjectId } from '@/utils/object-id';
-import { toPaginatedData } from '@/utils/pagination';
 import { StatusCodes } from 'http-status-codes';
+
+import type { InventoryReason } from '@/types/domain';
+import { InventoryLogModel } from '@models/inventory-log.model';
+import { ProductVariantModel } from '@models/product-variant.model';
+import { ApiError } from '@utils/api-error';
+import { toObjectId } from '@utils/object-id';
+import { toPaginatedData } from '@utils/pagination';
 
 interface AdjustStockInput {
   productId: string;

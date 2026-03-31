@@ -1,8 +1,9 @@
-import { ChatbotPresetDocument, ChatbotPresetModel } from '@/models/chatbot-preset.model';
-import { ProductVariantModel } from '@/models/product-variant.model';
-import { ProductModel } from '@/models/product.model';
-import { ApiError } from '@/utils/api-error';
 import { StatusCodes } from 'http-status-codes';
+
+import { ChatbotPresetModel, type ChatbotPresetDocument } from '@models/chatbot-preset.model';
+import { ProductModel } from '@models/product.model';
+import { ProductVariantModel } from '@models/product-variant.model';
+import { ApiError } from '@utils/api-error';
 import { Types } from 'mongoose';
 
 export type ChatbotIntent = 'preset';
@@ -83,11 +84,14 @@ interface ProductSnapshot {
 const toObjectId = (value: string) => new Types.ObjectId(value);
 
 const normalizeProductIds = (productIds: string[]) => {
-  const normalized = Array.from(new Set(productIds.map((item) => item.trim()).filter(Boolean)));
+  const normalized = Array.from(
+    new Set(productIds.map((item) => item.trim()).filter(Boolean))
+  );
 
   if (normalized.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'At least one chatbot product is required');
   }
+
   if (!normalized.every((item) => Types.ObjectId.isValid(item))) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid productIds');
   }
@@ -182,9 +186,7 @@ const getVariantPriceMap = async (productIds: string[]) => {
 const buildSuggestedProducts = async (productIds: string[]) => {
   const products = await getProductSnapshotsByIds(productIds);
   const activeProducts = products.filter((product) => product.isAvailable !== false);
-  const priceMap = await getVariantPriceMap(
-    activeProducts.map((product) => String(product._id ?? ''))
-  );
+  const priceMap = await getVariantPriceMap(activeProducts.map((product) => String(product._id ?? '')));
 
   return activeProducts.map((product) => {
     const productId = String(product._id ?? '');
@@ -193,8 +195,7 @@ const buildSuggestedProducts = async (productIds: string[]) => {
       id: productId,
       name: product.name?.trim() || 'Sản phẩm',
       brand: product.brand?.trim() || 'Generic',
-      imageUrl:
-        Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
+      imageUrl: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
       priceFrom: priceMap.get(productId) ?? null,
       soldCount: Number(product.soldCount ?? 0),
       averageRating: Number(product.averageRating ?? 0),
@@ -211,7 +212,7 @@ const buildAdminProducts = async (productIds: string[]) => {
     name: product.name?.trim() || 'Sản phẩm',
     brand: product.brand?.trim() || 'Generic',
     imageUrl: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null,
-    isAvailable: product.isAvailable === true
+    isAvailable: product.isAvailable !== false
   }));
 };
 
@@ -251,7 +252,7 @@ const toUpdatePayload = async (input: UpsertChatbotPresetInput) => {
   }
 
   if (input.answer !== undefined) {
-    payload.answer = input.answer.trim();
+    payload.answer = input.answer.trim() || undefined;
   }
 
   if (input.productIds !== undefined) {
@@ -304,7 +305,7 @@ export const askChatbot = async (input: AskChatbotInput): Promise<AskChatbotResu
     ),
     actions: [
       {
-        label: 'Xem sản phẩm',
+        label: 'Xem toàn bộ sản phẩm',
         url: '/products'
       }
     ],
@@ -356,7 +357,7 @@ export const updateChatbotPreset = async (presetId: string, input: UpsertChatbot
   const payload = await toUpdatePayload(input);
 
   if (Object.keys(payload).length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'At least one field is required to update');
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'At least one field is required');
   }
 
   const preset = await ChatbotPresetModel.findByIdAndUpdate(toObjectId(presetId), payload, {
