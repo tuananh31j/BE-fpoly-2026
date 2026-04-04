@@ -51,11 +51,9 @@ export const cancelOrderSchema = z.object({
   params: z.object({
     orderId: z.string().min(1)
   }),
-  body: z
-    .object({
-      note: z.string().max(255).optional()
-    })
-    .optional()
+  body: z.object({
+    note: z.string().trim().min(1, 'Lý do hủy đơn không được để trống').max(255)
+  })
 });
 
 export const updateOrderStatusSchema = z.object({
