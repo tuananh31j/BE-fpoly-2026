@@ -55,6 +55,7 @@ export const listProductsController = asyncHandler(async (req, res) => {
     brandId: req.query.brandId as string | undefined,
     brand: req.query.brand as string | undefined,
     colorIds: parseQueryList(req.query.colorIds),
+    sizeIds: parseQueryList(req.query.sizeIds),
     priceRanges: parseQueryList(req.query.priceRanges),
     search: req.query.search as string | undefined,
     isAvailable:

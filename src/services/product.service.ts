@@ -357,6 +357,7 @@ export const listProducts = async (options: {
   brandId?: string;
   brand?: string;
   colorIds?: string[];
+  sizeIds?: string[];
   priceRanges?: string[];
   search?: string;
   isAvailable?: boolean;
@@ -391,9 +392,14 @@ export const listProducts = async (options: {
   const normalizedColorIds = (options.colorIds ?? [])
     .map((colorId) => colorId.trim())
     .filter(Boolean);
+  const normalizedSizeIds = (options.sizeIds ?? []).map((sizeId) => sizeId.trim()).filter(Boolean);
   const priceRangeFilters = parsePriceRanges(options.priceRanges ?? []);
 
-  if (normalizedColorIds.length > 0 || priceRangeFilters.length > 0) {
+  if (
+    normalizedColorIds.length > 0 ||
+    normalizedSizeIds.length > 0 ||
+    priceRangeFilters.length > 0
+  ) {
     const baseProducts = await ProductModel.find(filters).select('_id').lean();
     const baseProductIds = baseProducts.map((product) =>
       toObjectId(String(product._id), 'productId')
@@ -410,6 +416,12 @@ export const listProducts = async (options: {
     if (normalizedColorIds.length > 0) {
       variantFilters.colorId = {
         $in: normalizedColorIds.map((colorId) => toObjectId(colorId, 'colorId'))
+      };
+    }
+
+    if (normalizedSizeIds.length > 0) {
+      variantFilters.sizeId = {
+        $in: normalizedSizeIds.map((sizeId) => toObjectId(sizeId, 'sizeId'))
       };
     }
 
@@ -535,6 +547,13 @@ export const listProductFilters = async () => {
           colorId: { $ne: null }
         })
       : [];
+  const sizeIds =
+    productIds.length > 0
+      ? await ProductVariantModel.distinct('sizeId', {
+          productId: { $in: productIds },
+          sizeId: { $ne: null }
+        })
+      : [];
 
   const colors =
     colorIds.length > 0
@@ -552,11 +571,27 @@ export const listProductFilters = async () => {
           hexCode: color.hexCode
         }))
       : [];
+  const sizes =
+    sizeIds.length > 0
+      ? (
+          (await SizeModel.find({
+            _id: { $in: sizeIds },
+            isActive: true
+          })
+            .select('name')
+            .sort({ name: 1 })
+            .lean()) as SizeSnapshot[]
+        ).map((size) => ({
+          id: String(size._id),
+          name: size.name ?? 'Kích thước'
+        }))
+      : [];
 
   return {
     categories,
     brands: Array.from(brands).sort((a, b) => a.localeCompare(b, 'vi')),
-    colors
+    colors,
+    sizes
   };
 };
 
