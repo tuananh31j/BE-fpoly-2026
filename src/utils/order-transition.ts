@@ -4,6 +4,7 @@ import type { OrderStatus } from '@/types/domain';
 import { ApiError } from '@utils/api-error';
 
 const transitionMap: Record<OrderStatus, OrderStatus[]> = {
+  awaiting_payment: ['cancelled'],
   pending: ['confirmed', 'cancelled'],
   confirmed: ['shipping', 'cancelled'],
   shipping: ['delivered'],

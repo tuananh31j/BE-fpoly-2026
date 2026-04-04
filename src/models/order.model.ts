@@ -119,7 +119,16 @@ const statusHistorySchema = new Schema<OrderStatusHistory>(
   {
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'returned'],
+      enum: [
+        'awaiting_payment',
+        'pending',
+        'confirmed',
+        'shipping',
+        'delivered',
+        'completed',
+        'cancelled',
+        'returned'
+      ],
       required: true
     },
     changedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -221,7 +230,16 @@ const orderSchema = new Schema<OrderDocument>(
     voucherId: { type: Schema.Types.ObjectId, ref: 'Voucher' },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'returned'],
+      enum: [
+        'awaiting_payment',
+        'pending',
+        'confirmed',
+        'shipping',
+        'delivered',
+        'completed',
+        'cancelled',
+        'returned'
+      ],
       default: 'pending'
     },
     deliveredAt: { type: Date },

@@ -22,6 +22,7 @@ export const listOrdersSchema = z.object({
     search: z.string().optional(),
     status: z
       .enum([
+        'awaiting_payment',
         'pending',
         'confirmed',
         'shipping',
@@ -36,10 +37,7 @@ export const listOrdersSchema = z.object({
 
 export const orderStatisticsSchema = z.object({
   query: z.object({
-    days: z
-      .string()
-      .regex(/^\d+$/)
-      .optional()
+    days: z.string().regex(/^\d+$/).optional()
   })
 });
 

@@ -3,6 +3,7 @@ export type Role = 'customer' | 'staff' | 'admin';
 export type VoucherDiscountType = 'percentage' | 'fixed_amount';
 
 export type OrderStatus =
+  | 'awaiting_payment'
   | 'pending'
   | 'confirmed'
   | 'shipping'
