@@ -9,6 +9,7 @@ import type {
   PaymentStatus,
   RefundMethod,
   ReturnRequestStatus,
+  VoucherDiscountType,
   ZalopayChannel
 } from '@/types/domain';
 import { env } from '@config/env';
@@ -116,6 +117,15 @@ interface DailyRevenueItem {
   deliveredOrders: number;
 }
 
+interface OrderVoucherSnapshot {
+  id: string;
+  code: string;
+  description?: string;
+  discountType: VoucherDiscountType;
+  discountValue: number;
+  maxDiscountAmount?: number;
+}
+
 interface CategoryBreakdownAggregateItem {
   categoryId: unknown;
   categoryName: string;
@@ -178,6 +188,54 @@ const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 const isOnlinePaymentMethod = (paymentMethod: PaymentMethod) => {
   return paymentMethod === 'vnpay' || paymentMethod === 'zalopay';
+};
+
+const attachVoucherSnapshots = async <T extends Record<string, unknown>>(orders: T[]) => {
+  const voucherIds = Array.from(
+    new Set(
+      orders
+        .map((order) => {
+          if (!order.voucherId) {
+            return '';
+          }
+
+          return String(order.voucherId);
+        })
+        .filter(Boolean)
+    )
+  );
+
+  if (voucherIds.length === 0) {
+    return orders.map((order) => ({
+      ...order,
+      voucher: undefined
+    }));
+  }
+
+  const vouchers = await VoucherModel.find({
+    _id: { $in: voucherIds }
+  })
+    .select('code description discountType discountValue maxDiscountAmount')
+    .lean();
+
+  const voucherMap = new Map<string, OrderVoucherSnapshot>(
+    vouchers.map((voucher) => [
+      String(voucher._id),
+      {
+        id: String(voucher._id),
+        code: voucher.code,
+        description: voucher.description,
+        discountType: voucher.discountType,
+        discountValue: voucher.discountValue,
+        maxDiscountAmount: voucher.maxDiscountAmount
+      }
+    ])
+  );
+
+  return orders.map((order) => ({
+    ...order,
+    voucher: order.voucherId ? voucherMap.get(String(order.voucherId)) : undefined
+  }));
 };
 
 type OrderMailSnapshot = Pick<
@@ -960,10 +1018,14 @@ export const createOrderFromCart = async (userId: string, input: CreateOrderInpu
     }
   });
 
-  return {
-    ...created.toObject(),
-    paymentUrl
-  };
+  const [enrichedCreated] = await attachVoucherSnapshots([
+    {
+      ...created.toObject(),
+      paymentUrl
+    } as Record<string, unknown>
+  ]);
+
+  return enrichedCreated;
 };
 
 const buildOrderSearchFilter = (search?: string) => {
@@ -1040,7 +1102,11 @@ export const listMyOrders = async (
     }))
   }));
 
-  return toPaginatedData(enrichedItems, totalItems, options.page, options.limit);
+  const enrichedOrders = await attachVoucherSnapshots(
+    enrichedItems as Array<Record<string, unknown>>
+  );
+
+  return toPaginatedData(enrichedOrders, totalItems, options.page, options.limit);
 };
 
 export const listAllOrders = async (options: {
@@ -1097,7 +1163,11 @@ export const listAllOrders = async (options: {
     user: userMap.get(String(item.userId))
   }));
 
-  return toPaginatedData(enrichedItems, totalItems, options.page, options.limit);
+  const enrichedOrders = await attachVoucherSnapshots(
+    enrichedItems as Array<Record<string, unknown>>
+  );
+
+  return toPaginatedData(enrichedOrders, totalItems, options.page, options.limit);
 };
 
 export const getOrderStatistics = async (options: ListOrderStatisticsOptions) => {
@@ -1622,7 +1692,9 @@ export const getMyOrderById = async (userId: string, orderId: string) => {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Order not found');
   }
 
-  return order;
+  const [enrichedOrder] = await attachVoucherSnapshots([order as unknown as Record<string, unknown>]);
+
+  return enrichedOrder;
 };
 
 // worklog: 2026-03-04 13:56:52 | vanduc | feature | restoreStockForOrder
