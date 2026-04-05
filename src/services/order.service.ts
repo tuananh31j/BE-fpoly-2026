@@ -26,6 +26,7 @@ import { sendMail } from '@services/mail.service';
 import { emitStaffRealtimeNotification } from '@services/realtime-notification.service';
 import {
   createZalopayPaymentUrl,
+  isZalopayQueryStillProcessing,
   queryZalopayOrderStatus,
   type ZalopayRedirectPayload,
   verifyZalopayCallback,
@@ -2576,17 +2577,19 @@ export const handleZalopayRedirect = async (payload: Record<string, unknown>) =>
         if (!order.paidAt) {
           order.paidAt = new Date();
         }
-      } else if (queryResult.returnCode !== 2 && order.paymentStatus !== 'refunded') {
+      } else if (
+        isZalopayQueryStillProcessing(queryResult) &&
+        order.paymentStatus !== 'refunded'
+      ) {
+        order.paymentStatus = 'pending';
+      } else if (
+        !isZalopayQueryStillProcessing(queryResult) &&
+        order.paymentStatus !== 'refunded'
+      ) {
         order.paymentStatus = 'failed';
       }
     } catch (error) {
       logger.warn('ZaloPay query failed', error);
-
-      order.paymentStatus = 'paid';
-
-      if (!order.paidAt) {
-        order.paidAt = new Date();
-      }
     }
   } else if (
     verifyResult.status !== 1 &&
