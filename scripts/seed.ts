@@ -626,6 +626,7 @@ const pickOrderStatusByAge = (ageDays: number): OrderStatus => {
   }
 
   return weightedPick<OrderStatus>([
+    { value: 'awaiting_payment', weight: 8 },
     { value: 'pending', weight: 34 },
     { value: 'confirmed', weight: 25 },
     { value: 'shipping', weight: 14 },
@@ -637,6 +638,8 @@ const pickOrderStatusByAge = (ageDays: number): OrderStatus => {
 
 const buildOrderTimeline = (status: OrderStatus): OrderStatus[] => {
   switch (status) {
+    case 'awaiting_payment':
+      return ['awaiting_payment'];
     case 'pending':
       return ['pending'];
     case 'confirmed':
@@ -701,6 +704,10 @@ const buildStatusHistory = (
 };
 
 const resolvePaymentStatus = (status: OrderStatus, paymentMethod: PaymentMethod): PaymentStatus => {
+  if (status === 'awaiting_payment') {
+    return 'pending';
+  }
+
   if (status === 'delivered' || status === 'completed') {
     return 'paid';
   }
@@ -770,6 +777,7 @@ const seedOrders = async (
       Math.floor((now.getTime() - createdAt.getTime()) / MINUTE_MS)
     );
     const expectedProgressMinutes: Record<OrderStatus, number> = {
+      awaiting_payment: 30,
       pending: 0,
       confirmed: 6 * 60,
       shipping: 48 * 60,
