@@ -186,6 +186,12 @@ const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   refunded: 'Đã hoàn tiền'
 };
 
+const CANCEL_REFUND_REQUEST_STATUS_LABELS: Record<CancelRefundRequestStatus, string> = {
+  pending: 'Chờ xử lý',
+  rejected: 'Từ chối',
+  refunded: 'Đã hoàn tiền'
+};
+
 const RETURN_REQUEST_STATUS_LABELS: Record<ReturnRequestStatus, string> = {
   pending: 'Chờ xử lý',
   approved: 'Đã duyệt',
@@ -299,28 +305,6 @@ const formatDateTime = (value?: Date | string) => {
     hour12: false,
     timeZone: 'Asia/Ho_Chi_Minh'
   });
-};
-
-const toReturnRequestMailSnapshot = (
-  request: NonNullable<OrderDocument['returnRequests']>[number]
-): ReturnRequestMailSnapshot => {
-  return {
-    status: request.status,
-    refundMethod: request.refundMethod,
-    refundAmount: request.refundAmount,
-    reason: request.reason,
-    note: request.note,
-    refundEvidenceImages: request.refundEvidenceImages,
-    createdAt: request.createdAt,
-    updatedAt: request.updatedAt,
-    items: request.items.map((item) => ({
-      productName: item.productName,
-      variantSku: item.variantSku,
-      quantity: item.quantity,
-      price: item.price,
-      total: item.total
-    }))
-  };
 };
 
 const sendOrderLifecycleMail = async ({
@@ -506,66 +490,26 @@ interface SendCancelRefundProcessedMailInput {
   to: string;
   customerName?: string;
   order: OrderMailSnapshot;
-  refundRequest: NonNullable<OrderDocument['cancelRefundRequest']>;
-}
-
-interface ReturnRequestMailSnapshot {
-  status: ReturnRequestStatus;
-  refundMethod: RefundMethod;
-  refundAmount: number;
-  reason?: string;
-  note?: string;
-  refundEvidenceImages?: string[];
-  items: Array<{
-    productName: string;
-    variantSku: string;
-    quantity: number;
-    price: number;
-    total: number;
-  }>;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-interface SendReturnRequestLifecycleMailInput {
-  to: string;
-  customerName?: string;
-  order: OrderMailSnapshot;
-  request: ReturnRequestMailSnapshot;
+  request: NonNullable<OrderDocument['cancelRefundRequest']>;
   event: 'created' | 'status_updated';
-  previousStatus?: ReturnRequestStatus;
-  orderMarkedReturned?: boolean;
+  previousStatus?: CancelRefundRequestStatus;
+  cancelReason?: string;
 }
 
-const sendReturnRequestLifecycleMail = async ({
+const sendCancelRefundLifecycleMail = async ({
   to,
   customerName,
   order,
   request,
   event,
   previousStatus,
-  orderMarkedReturned
-}: SendReturnRequestLifecycleMailInput) => {
+  cancelReason
+}: SendCancelRefundProcessedMailInput) => {
   try {
-    const itemsRowsHtml = request.items
-      .map((item, index) => {
-        return `
-          <tr>
-            <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">${index + 1}</td>
-            <td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(item.productName)}</td>
-            <td style="padding:8px;border:1px solid #e5e7eb;">${escapeHtml(item.variantSku)}</td>
-            <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">${item.quantity}</td>
-            <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">${formatMoneyVnd(item.price)}</td>
-            <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">${formatMoneyVnd(item.total)}</td>
-          </tr>
-        `;
-      })
-      .join('');
-
     const evidenceLinksHtml = request.refundEvidenceImages?.length
       ? `
       <div style="margin:16px 0;">
-        <p style="margin:0 0 8px;color:#111827;font-weight:700;">Ảnh minh chứng hoàn tiền</p>
+        <p style="margin:0 0 8px;color:#111827;font-weight:700;">Minh chứng hoàn tiền</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           ${request.refundEvidenceImages
             .map(
@@ -582,57 +526,57 @@ const sendReturnRequestLifecycleMail = async ({
       : '';
 
     const evidenceLinksText = request.refundEvidenceImages?.length
-      ? `\nẢnh minh chứng hoàn tiền:\n${request.refundEvidenceImages.join('\n')}\n`
+      ? `\nMinh chứng hoàn tiền:\n${request.refundEvidenceImages.join('\n')}\n`
       : '';
 
-    const introHtml =
+    const resolvedSubject =
       event === 'created'
-        ? `<p style="margin:0 0 12px;color:#374151;">Chúng tôi đã nhận yêu cầu hoàn hàng cho đơn <strong>${escapeHtml(order.orderCode)}</strong>.</p>`
-        : `
+        ? `[Golden Billiards] Đã nhận yêu cầu hoàn tiền ${order.orderCode}`
+        : request.status === 'refunded'
+          ? `[Golden Billiards] Đã hoàn tiền đơn hàng ${order.orderCode}`
+          : request.status === 'rejected'
+            ? `[Golden Billiards] Yêu cầu hoàn tiền bị từ chối ${order.orderCode}`
+            : `[Golden Billiards] Cập nhật yêu cầu hoàn tiền ${order.orderCode}`;
+
+    const resolvedIntroHtml =
+      event === 'created'
+        ? `<p style="margin:0 0 12px;color:#374151;">Chúng tôi đã nhận yêu cầu hoàn tiền cho đơn hàng đã hủy <strong>${escapeHtml(order.orderCode)}</strong>.</p>`
+        : request.status === 'refunded'
+          ? `<p style="margin:0 0 12px;color:#374151;">Cửa hàng đã hoàn tiền thành công cho đơn hàng <strong>${escapeHtml(order.orderCode)}</strong>.</p>`
+          : request.status === 'rejected'
+            ? `<p style="margin:0 0 12px;color:#374151;">Yêu cầu hoàn tiền cho đơn hàng <strong>${escapeHtml(order.orderCode)}</strong> đã bị từ chối.</p>`
+            : `
       <p style="margin:0 0 12px;color:#374151;">
-        Yêu cầu hoàn hàng của bạn đã được cập nhật từ
-        <strong>${RETURN_REQUEST_STATUS_LABELS[previousStatus ?? request.status]}</strong>
+        Yêu cầu hoàn tiền của bạn đã được cập nhật từ
+        <strong>${CANCEL_REFUND_REQUEST_STATUS_LABELS[previousStatus ?? request.status]}</strong>
         sang
-        <strong>${RETURN_REQUEST_STATUS_LABELS[request.status]}</strong>.
+        <strong>${CANCEL_REFUND_REQUEST_STATUS_LABELS[request.status]}</strong>.
       </p>
     `;
-
-    const orderReturnedHtml = orderMarkedReturned
-      ? `
-      <p style="margin:0 0 12px;color:#374151;">
-        Đơn hàng đã được chuyển sang trạng thái <strong>${ORDER_STATUS_LABELS.returned}</strong>.
-      </p>
-    `
-      : '';
-
-    const subject =
-      event === 'created'
-        ? `[Golden Billiards] Đã nhận yêu cầu hoàn hàng ${order.orderCode}`
-        : `[Golden Billiards] Cập nhật yêu cầu hoàn hàng ${order.orderCode}`;
-
-    const textItems = request.items
-      .map((item, index) => {
-        return `${index + 1}. ${item.productName} | SKU: ${item.variantSku} | SL: ${item.quantity} | Đơn giá: ${formatMoneyVnd(item.price)} | Thành tiền: ${formatMoneyVnd(item.total)}`;
-      })
-      .join('\n');
 
     const text =
       `Xin chào ${customerName ?? order.shippingRecipientName ?? 'bạn'},\n\n` +
       `${
         event === 'created'
-          ? `Chúng tôi đã nhận yêu cầu hoàn hàng cho đơn ${order.orderCode}.`
-          : `Yêu cầu hoàn hàng của bạn đã được cập nhật từ ${RETURN_REQUEST_STATUS_LABELS[previousStatus ?? request.status]} sang ${RETURN_REQUEST_STATUS_LABELS[request.status]}.`
+          ? `Chúng tôi đã nhận yêu cầu hoàn tiền cho đơn hàng đã hủy ${order.orderCode}.`
+          : request.status === 'refunded'
+            ? `Cửa hàng đã hoàn tiền thành công cho đơn hàng ${order.orderCode}.`
+            : request.status === 'rejected'
+              ? `Yêu cầu hoàn tiền cho đơn hàng ${order.orderCode} đã bị từ chối.`
+              : `Yêu cầu hoàn tiền của bạn đã được cập nhật từ ${CANCEL_REFUND_REQUEST_STATUS_LABELS[previousStatus ?? request.status]} sang ${CANCEL_REFUND_REQUEST_STATUS_LABELS[request.status]}.`
       }\n` +
-      `${orderMarkedReturned ? `Đơn hàng đã được chuyển sang trạng thái ${ORDER_STATUS_LABELS.returned}.\n` : ''}` +
       `\nMã đơn: ${order.orderCode}\n` +
-      `Trạng thái yêu cầu: ${RETURN_REQUEST_STATUS_LABELS[request.status]}\n` +
-      `Phương thức hoàn tiền: ${REFUND_METHOD_LABELS[request.refundMethod]}\n` +
-      `Số tiền hoàn dự kiến: ${formatMoneyVnd(request.refundAmount)}\n` +
-      `${request.reason ? `Lý do hoàn hàng: ${request.reason}\n` : ''}` +
-      `${request.note ? `Ghi chú xử lý: ${request.note}\n` : ''}` +
-      `Ngày tạo yêu cầu: ${formatDateTime(request.createdAt)}\n` +
+      `Trạng thái yêu cầu: ${CANCEL_REFUND_REQUEST_STATUS_LABELS[request.status]}\n` +
+      `Số tiền hoàn: ${formatMoneyVnd(request.refundAmount)}\n` +
+      `Ngân hàng nhận: ${request.bankName}\n` +
+      `Số tài khoản: ${request.accountNumber}\n` +
+      `Chủ tài khoản: ${request.accountHolder}\n` +
+      `${cancelReason ? `Lý do hủy đơn: ${cancelReason}\n` : ''}` +
+      `${request.note ? `Ghi chú của khách hàng: ${request.note}\n` : ''}` +
+      `${request.adminNote ? `Ghi chú từ cửa hàng: ${request.adminNote}\n` : ''}` +
+      `Thời gian tạo yêu cầu: ${formatDateTime(request.requestedAt)}\n` +
       `Cập nhật gần nhất: ${formatDateTime(request.updatedAt)}\n` +
-      `\nSản phẩm hoàn hàng:\n${textItems}\n` +
+      `${request.processedAt ? `Thời gian xử lý: ${formatDateTime(request.processedAt)}\n` : ''}` +
       `${evidenceLinksText}` +
       `\nCảm ơn bạn đã mua sắm tại Golden Billiards.`;
 
@@ -655,41 +599,37 @@ const sendReturnRequestLifecycleMail = async ({
               <p style="margin:0 0 12px;color:#111827;">Xin chào <strong>${escapeHtml(
                 customerName ?? order.shippingRecipientName ?? 'bạn'
               )}</strong>,</p>
-              ${introHtml}
-              ${orderReturnedHtml}
+              ${resolvedIntroHtml}
 
               <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
                 <tr><td style="padding:6px 0;color:#6b7280;width:180px;">Mã đơn</td><td style="padding:6px 0;color:#111827;">${escapeHtml(order.orderCode)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Trạng thái yêu cầu</td><td style="padding:6px 0;color:#111827;">${RETURN_REQUEST_STATUS_LABELS[request.status]}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Phương thức hoàn tiền</td><td style="padding:6px 0;color:#111827;">${REFUND_METHOD_LABELS[request.refundMethod]}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Số tiền hoàn dự kiến</td><td style="padding:6px 0;color:#111827;">${formatMoneyVnd(request.refundAmount)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Ngày tạo yêu cầu</td><td style="padding:6px 0;color:#111827;">${formatDateTime(request.createdAt)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Trạng thái yêu cầu</td><td style="padding:6px 0;color:#111827;">${CANCEL_REFUND_REQUEST_STATUS_LABELS[request.status]}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Số tiền hoàn</td><td style="padding:6px 0;color:#111827;">${formatMoneyVnd(request.refundAmount)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Ngân hàng</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.bankName)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Số tài khoản</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.accountNumber)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Chủ tài khoản</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.accountHolder)}</td></tr>
+                <tr><td style="padding:6px 0;color:#6b7280;">Thời gian tạo yêu cầu</td><td style="padding:6px 0;color:#111827;">${formatDateTime(request.requestedAt)}</td></tr>
                 <tr><td style="padding:6px 0;color:#6b7280;">Cập nhật gần nhất</td><td style="padding:6px 0;color:#111827;">${formatDateTime(request.updatedAt)}</td></tr>
                 ${
-                  request.reason
-                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Lý do hoàn hàng</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.reason)}</td></tr>`
+                  request.processedAt
+                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Thời gian xử lý</td><td style="padding:6px 0;color:#111827;">${formatDateTime(request.processedAt)}</td></tr>`
+                    : ''
+                }
+                ${
+                  cancelReason
+                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Lý do hủy đơn</td><td style="padding:6px 0;color:#111827;">${escapeHtml(cancelReason)}</td></tr>`
                     : ''
                 }
                 ${
                   request.note
-                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Ghi chú xử lý</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.note)}</td></tr>`
+                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Ghi chú khách hàng</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.note)}</td></tr>`
                     : ''
                 }
-              </table>
-
-              <h3 style="margin:16px 0 8px;color:#111827;">Sản phẩm hoàn hàng</h3>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
-                <thead>
-                  <tr style="background:#f9fafb;">
-                    <th style="padding:8px;border:1px solid #e5e7eb;">#</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;">Sản phẩm</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;">SKU</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;">SL</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;">Đơn giá</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>${itemsRowsHtml}</tbody>
+                ${
+                  request.adminNote
+                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Ghi chú cửa hàng</td><td style="padding:6px 0;color:#111827;">${escapeHtml(request.adminNote)}</td></tr>`
+                    : ''
+                }
               </table>
 
               ${evidenceLinksHtml}
@@ -704,115 +644,7 @@ const sendReturnRequestLifecycleMail = async ({
 
     const sent = await sendMail({
       to,
-      subject,
-      html,
-      text
-    });
-
-    if (!sent) {
-      logger.warn(`Không thể gửi email hoàn hàng đơn ${order.orderCode} tới ${to}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logger.error(`Lỗi gửi email hoàn hàng: ${(error as Error).message}`);
-    return false;
-  }
-};
-
-const sendCancelRefundProcessedMail = async ({
-  to,
-  customerName,
-  order,
-  refundRequest
-}: SendCancelRefundProcessedMailInput) => {
-  try {
-    const billLinksHtml = refundRequest.refundEvidenceImages?.length
-      ? `
-      <div style="margin:16px 0;">
-        <p style="margin:0 0 8px;color:#111827;font-weight:700;">Ảnh bill chuyển khoản</p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${refundRequest.refundEvidenceImages
-            .map(
-              (url) => `
-                <a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" style="display:inline-block;">
-                  <img src="${escapeHtml(url)}" alt="Bill hoàn tiền" style="width:120px;height:120px;object-fit:cover;border:1px solid #e5e7eb;border-radius:8px;" />
-                </a>
-              `
-            )
-            .join('')}
-        </div>
-      </div>
-    `
-      : '';
-
-    const billLinksText = refundRequest.refundEvidenceImages?.length
-      ? `\nẢnh bill chuyển khoản:\n${refundRequest.refundEvidenceImages.join('\n')}\n`
-      : '';
-
-    const subject = `[Golden Billiards] Đã hoàn tiền đơn hàng ${order.orderCode}`;
-    const text =
-      `Xin chào ${customerName ?? order.shippingRecipientName ?? 'bạn'},\n\n` +
-      `Yêu cầu hoàn tiền cho đơn hàng ${order.orderCode} đã được xử lý thành công.\n` +
-      `Số tiền hoàn: ${formatMoneyVnd(refundRequest.refundAmount)}\n` +
-      `Ngân hàng nhận: ${refundRequest.bankName}\n` +
-      `Số tài khoản: ${refundRequest.accountNumber}\n` +
-      `Chủ tài khoản: ${refundRequest.accountHolder}\n` +
-      `${refundRequest.adminNote ? `Ghi chú từ cửa hàng: ${refundRequest.adminNote}\n` : ''}` +
-      `Thời gian hoàn: ${formatDateTime(refundRequest.processedAt ?? new Date())}\n` +
-      `${billLinksText}` +
-      `\nCảm ơn bạn đã mua sắm tại Golden Billiards.`;
-
-    const html = `
-<!DOCTYPE html>
-<html lang="vi">
-<head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;background:#f3f4f6;">
-    <tr>
-      <td align="center">
-        <table width="720" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="background:#111827;padding:20px 24px;">
-              <h1 style="margin:0;color:#ffffff;font-size:20px;">Golden Billiards</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:24px;">
-              <p style="margin:0 0 12px;color:#111827;">Xin chào <strong>${escapeHtml(
-                customerName ?? order.shippingRecipientName ?? 'bạn'
-              )}</strong>,</p>
-              <p style="margin:0 0 12px;color:#374151;">
-                Cửa hàng đã hoàn tiền thành công cho đơn hàng <strong>${escapeHtml(order.orderCode)}</strong>.
-              </p>
-
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
-                <tr><td style="padding:6px 0;color:#6b7280;width:180px;">Số tiền hoàn</td><td style="padding:6px 0;color:#111827;">${formatMoneyVnd(refundRequest.refundAmount)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Ngân hàng</td><td style="padding:6px 0;color:#111827;">${escapeHtml(refundRequest.bankName)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Số tài khoản</td><td style="padding:6px 0;color:#111827;">${escapeHtml(refundRequest.accountNumber)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Chủ tài khoản</td><td style="padding:6px 0;color:#111827;">${escapeHtml(refundRequest.accountHolder)}</td></tr>
-                <tr><td style="padding:6px 0;color:#6b7280;">Thời gian hoàn</td><td style="padding:6px 0;color:#111827;">${formatDateTime(refundRequest.processedAt ?? new Date())}</td></tr>
-                ${
-                  refundRequest.adminNote
-                    ? `<tr><td style="padding:6px 0;color:#6b7280;">Ghi chú</td><td style="padding:6px 0;color:#111827;">${escapeHtml(refundRequest.adminNote)}</td></tr>`
-                    : ''
-                }
-              </table>
-
-              ${billLinksHtml}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-    const sent = await sendMail({
-      to,
-      subject,
+      subject: resolvedSubject,
       html,
       text
     });
@@ -829,16 +661,18 @@ const sendCancelRefundProcessedMail = async ({
   }
 };
 
+const getLatestCancelledOrderNote = (order: Pick<OrderDocument, 'statusHistory'>) => {
+  return [...order.statusHistory]
+    .reverse()
+    .find((history) => history.status === 'cancelled')
+    ?.note?.trim();
+};
 const sendOrderLifecycleMailInBackground = (input: SendOrderLifecycleMailInput) => {
   void sendOrderLifecycleMail(input);
 };
 
-const sendReturnRequestLifecycleMailInBackground = (input: SendReturnRequestLifecycleMailInput) => {
-  void sendReturnRequestLifecycleMail(input);
-};
-
-const sendCancelRefundProcessedMailInBackground = (input: SendCancelRefundProcessedMailInput) => {
-  void sendCancelRefundProcessedMail(input);
+const sendCancelRefundLifecycleMailInBackground = (input: SendCancelRefundProcessedMailInput) => {
+  void sendCancelRefundLifecycleMail(input);
 };
 
 // worklog: 2026-03-04 09:35:15 | dung | refactor | toDateKey
@@ -2258,19 +2092,6 @@ export const createReturnRequest = async ({
 
   await order.save();
 
-  const createdRequest = order.returnRequests?.[order.returnRequests.length - 1];
-  const customer = await UserModel.findById(order.userId).select('email fullName').lean();
-
-  if (customer?.email && createdRequest) {
-    sendReturnRequestLifecycleMailInBackground({
-      to: customer.email,
-      customerName: customer.fullName,
-      order: order.toObject() as OrderMailSnapshot,
-      request: toReturnRequestMailSnapshot(createdRequest),
-      event: 'created'
-    });
-  }
-
   return order.toObject();
 };
 
@@ -2346,20 +2167,6 @@ export const updateReturnRequest = async ({
 
   await order.save();
 
-  const customer = await UserModel.findById(order.userId).select('email fullName').lean();
-
-  if (customer?.email && previousRequestStatus !== status) {
-    sendReturnRequestLifecycleMailInBackground({
-      to: customer.email,
-      customerName: customer.fullName,
-      order: order.toObject() as OrderMailSnapshot,
-      request: toReturnRequestMailSnapshot(request),
-      event: 'status_updated',
-      previousStatus: previousRequestStatus,
-      orderMarkedReturned: order.status === 'returned'
-    });
-  }
-
   return order.toObject();
 };
 
@@ -2429,6 +2236,19 @@ export const createCancelRefundRequest = async ({
 
   await order.save();
 
+  const customer = await UserModel.findById(order.userId).select('email fullName').lean();
+
+  if (customer?.email && order.cancelRefundRequest) {
+    sendCancelRefundLifecycleMailInBackground({
+      to: customer.email,
+      customerName: customer.fullName,
+      order: order.toObject() as OrderMailSnapshot,
+      request: order.cancelRefundRequest,
+      event: 'created',
+      cancelReason: getLatestCancelledOrderNote(order)
+    });
+  }
+
   return order.toObject();
 };
 
@@ -2455,6 +2275,7 @@ export const updateCancelRefundRequest = async ({
     throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'Refund request already completed');
   }
 
+  const previousRequestStatus = request.status;
   const nextImages = (refundEvidenceImages ?? []).map((item) => item.trim()).filter(Boolean);
   const evidenceImages = nextImages.length > 0 ? nextImages : (request.refundEvidenceImages ?? []);
 
@@ -2494,17 +2315,18 @@ export const updateCancelRefundRequest = async ({
 
   await order.save();
 
-  if (status === 'refunded') {
-    const customer = await UserModel.findById(order.userId).select('email fullName').lean();
+  const customer = await UserModel.findById(order.userId).select('email fullName').lean();
 
-    if (customer?.email && order.cancelRefundRequest) {
-      sendCancelRefundProcessedMailInBackground({
-        to: customer.email,
-        customerName: customer.fullName,
-        order: order.toObject() as OrderMailSnapshot,
-        refundRequest: order.cancelRefundRequest
-      });
-    }
+  if (customer?.email && order.cancelRefundRequest && previousRequestStatus !== status) {
+    sendCancelRefundLifecycleMailInBackground({
+      to: customer.email,
+      customerName: customer.fullName,
+      order: order.toObject() as OrderMailSnapshot,
+      request: order.cancelRefundRequest,
+      event: 'status_updated',
+      previousStatus: previousRequestStatus,
+      cancelReason: getLatestCancelledOrderNote(order)
+    });
   }
 
   return order.toObject();
