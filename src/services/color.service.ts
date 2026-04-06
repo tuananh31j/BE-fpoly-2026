@@ -12,6 +12,15 @@ interface ColorPayload {
   isActive?: boolean;
 }
 
+const normalizeColorHex = (value?: string | null) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+  return normalizedValue.length > 0 ? normalizedValue : null;
+};
+
 export const listColors = async (options: {
   page: number;
   limit: number;
@@ -51,8 +60,8 @@ export const getColorById = async (colorId: string) => {
 
 export const createColor = async (payload: ColorPayload) => {
   const created = await ColorModel.create({
-    name: payload.name,
-    hexCode: payload.hexCode?.toUpperCase(),
+    name: payload.name.trim(),
+    hexCode: normalizeColorHex(payload.hexCode) ?? undefined,
     isActive: payload.isActive ?? true
   });
 
@@ -61,11 +70,12 @@ export const createColor = async (payload: ColorPayload) => {
 
 export const updateColor = async (colorId: string, payload: Partial<ColorPayload>) => {
   const updateData: Record<string, unknown> = {
-    ...payload
+    ...payload,
+    ...(typeof payload.name === 'string' ? { name: payload.name.trim() } : {})
   };
 
   if (payload.hexCode !== undefined) {
-    updateData.hexCode = payload.hexCode ? payload.hexCode.toUpperCase() : null;
+    updateData.hexCode = normalizeColorHex(payload.hexCode);
   }
 
   const updated = await ColorModel.findByIdAndUpdate(
