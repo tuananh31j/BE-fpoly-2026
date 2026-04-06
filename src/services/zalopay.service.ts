@@ -74,6 +74,12 @@ export interface ZalopayQueryResult {
 const ZALOPAY_V1_CREATE_ENDPOINT = 'https://sandbox.zalopay.com.vn/v001/tpe/createorder';
 const ZALOPAY_V1_QUERY_ENDPOINT = 'https://sandbox.zalopay.com.vn/v001/tpe/getstatusbyapptransid';
 const ZALOPAY_REQUEST_TIMEOUT_MS = 10000;
+const ZALOPAY_ERROR_MESSAGES: Record<number, string> = {
+  [-2]: 'APPID_INVALID - app_id không hợp lệ hoặc đang sai tên trường',
+  [-53]: 'HMAC_INVALID - sai chữ ký tạo đơn, thường do ZALOPAY_APP_ID/ZALOPAY_KEY1 không khớp',
+  [-54]: 'TIME_INVALID - app_time không đúng định dạng millisecond',
+  [-68]: 'DUPLICATE_APPTRANSID - app_trans_id đã tồn tại'
+};
 
 const signHmacSha256 = (key: string, data: string) => {
   return crypto.createHmac('sha256', key).update(data).digest('hex');
@@ -166,7 +172,7 @@ export const createZalopayPaymentUrl = async (
     mac
   });
 
-  if (typeof input.bankCode === 'string') {
+  if (typeof input.bankCode === 'string' && input.bankCode.trim()) {
     payload.append('bankcode', input.bankCode.trim());
   }
 
@@ -216,6 +222,8 @@ export const createZalopayPaymentUrl = async (
   const zpTransToken = data.zptranstoken ?? data.zp_trans_token;
 
   if (returnCode !== 1 || !orderUrl) {
+    const normalizedErrorMessage = ZALOPAY_ERROR_MESSAGES[returnCode];
+
     logger.warn(
       `[ZaloPay] create order failed (code=${returnCode}, subCode=${subReturnCode ?? 'N/A'}, message=${returnMessage ?? 'N/A'})`,
       data
@@ -224,7 +232,9 @@ export const createZalopayPaymentUrl = async (
       StatusCodes.BAD_GATEWAY,
       returnMessage
         ? `ZaloPay: ${returnMessage}${subReturnCode ? ` sub:${subReturnCode}` : ''}${subReturnMessage ? ` ${subReturnMessage}` : ''}`
-        : `ZaloPay: Giao dịch thất bại (code: ${returnCode})`
+        : normalizedErrorMessage
+          ? `ZaloPay: ${normalizedErrorMessage} (code: ${returnCode})`
+          : `ZaloPay: Giao dịch thất bại (code: ${returnCode})`
     );
   }
 
