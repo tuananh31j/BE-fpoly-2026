@@ -62,15 +62,48 @@ const envSchema = z.object({
 
 const parsedEnv = envSchema.parse(process.env);
 
+const LOOPBACK_HOST_ALIASES: Record<string, string[]> = {
+  localhost: ['127.0.0.1', '[::1]'],
+  '127.0.0.1': ['localhost', '[::1]'],
+  '[::1]': ['localhost', '127.0.0.1']
+};
+
+const expandLoopbackOrigin = (origin: string) => {
+  try {
+    const url = new URL(origin);
+    const aliases = LOOPBACK_HOST_ALIASES[url.hostname] ?? [];
+
+    return aliases.map((hostname) => {
+      const nextUrl = new URL(origin);
+      nextUrl.hostname = hostname;
+      return nextUrl.toString().replace(/\/$/, '');
+    });
+  } catch {
+    return [];
+  }
+};
+
 const parseOrigins = (value: string) => {
   if (value.trim() === '*') {
     return '*';
   }
 
-  return value
+  const origins = value
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  const normalizedOrigins = new Set<string>();
+
+  origins.forEach((origin) => {
+    normalizedOrigins.add(origin.replace(/\/$/, ''));
+
+    expandLoopbackOrigin(origin).forEach((aliasOrigin) => {
+      normalizedOrigins.add(aliasOrigin);
+    });
+  });
+
+  return Array.from(normalizedOrigins);
 };
 
 export const env = {
