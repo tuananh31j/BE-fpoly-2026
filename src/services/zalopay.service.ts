@@ -106,6 +106,10 @@ const requireZalopayConfig = () => {
   }
 };
 
+const isZalopayBankListEndpoint = (endpoint: string) => {
+  return endpoint.toLowerCase().includes('getlistmerchantbanks');
+};
+
 const resolveZalopayCreateEndpoint = () => {
   const configured = env.ZALOPAY_CREATE_ENDPOINT?.trim();
 
@@ -116,6 +120,13 @@ const resolveZalopayCreateEndpoint = () => {
   if (configured.includes('openapi.zalopay.vn/v2/create')) {
     logger.warn(
       `[ZaloPay] endpoint ${configured} không tương thích với payload v1, tự chuyển sang ${ZALOPAY_V1_CREATE_ENDPOINT}`
+    );
+    return ZALOPAY_V1_CREATE_ENDPOINT;
+  }
+
+  if (isZalopayBankListEndpoint(configured)) {
+    logger.warn(
+      `[ZaloPay] endpoint ${configured} là API lấy danh sách ngân hàng, không phải createorder; tự chuyển sang ${ZALOPAY_V1_CREATE_ENDPOINT}`
     );
     return ZALOPAY_V1_CREATE_ENDPOINT;
   }
