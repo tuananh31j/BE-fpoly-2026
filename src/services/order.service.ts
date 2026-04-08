@@ -107,8 +107,13 @@ interface UpdateCancelRefundRequestInput {
   refundEvidenceImages?: string[];
 }
 
+type StatisticsPeriodInput = 'day' | 'week' | 'month' | 'custom';
+
 interface ListOrderStatisticsOptions {
-  days: number;
+  days?: number;
+  period?: StatisticsPeriodInput;
+  fromDate?: string;
+  toDate?: string;
 }
 
 interface DailyRevenueItem {
@@ -147,6 +152,18 @@ interface VariantSalesAggregateItem {
   revenue: number;
 }
 
+interface ProductSalesAggregateItem {
+  _id: unknown;
+  name: string;
+  brand: string;
+  soldCount: number;
+  revenue: number;
+  reviewCount: number;
+  averageRating: number;
+  isAvailable: boolean;
+  thumbnailUrl?: string | null;
+}
+
 const ORDER_STATUS_ORDER: OrderStatus[] = [
   'awaiting_payment',
   'pending',
@@ -160,6 +177,19 @@ const ORDER_STATUS_ORDER: OrderStatus[] = [
 
 const PAYMENT_METHOD_ORDER: PaymentMethod[] = ['cod', 'banking', 'momo', 'vnpay', 'zalopay'];
 const MONEY_FORMATTER = new Intl.NumberFormat('vi-VN');
+const DASHBOARD_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+const DATE_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: DASHBOARD_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+const DATE_LABEL_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: DASHBOARD_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric'
+});
 
 const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   awaiting_payment: 'Chờ thanh toán',
@@ -678,7 +708,12 @@ const sendCancelRefundLifecycleMailInBackground = (input: SendCancelRefundProces
 
 // worklog: 2026-03-04 09:35:15 | dung | refactor | toDateKey
 const toDateKey = (value: Date) => {
-  return value.toISOString().slice(0, 10);
+  const parts = DATE_KEY_FORMATTER.formatToParts(value);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '01';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '01';
+
+  return `${year}-${month}-${day}`;
 };
 
 // worklog: 2026-03-04 21:22:04 | vanduc | fix | buildDateRange
@@ -690,6 +725,109 @@ const buildDateRange = (days: number) => {
   fromDate.setHours(0, 0, 0, 0);
 
   return { fromDate, toDate };
+};
+
+const parseStatisticsDate = (value?: string) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const getStatisticsRangeLabel = (
+  period: StatisticsPeriodInput | 'rolling',
+  days: number,
+  fromDate: Date,
+  toDate: Date
+) => {
+  if (period === 'day') {
+    return 'Hôm nay';
+  }
+
+  if (period === 'week') {
+    return '7 ngày gần nhất';
+  }
+
+  if (period === 'month') {
+    return '30 ngày gần nhất';
+  }
+
+  if (period === 'rolling') {
+    return `${days} ngày gần nhất`;
+  }
+
+  return `${DATE_LABEL_FORMATTER.format(fromDate)} - ${DATE_LABEL_FORMATTER.format(toDate)}`;
+};
+
+const buildStatisticsDateRange = (options: ListOrderStatisticsOptions) => {
+  const normalizedDays = Math.min(Math.max(Math.trunc(options.days ?? 7), 1), 90);
+
+  if (options.period === 'custom') {
+    const parsedFromDate = parseStatisticsDate(options.fromDate);
+    const parsedToDate = parseStatisticsDate(options.toDate);
+
+    if (!parsedFromDate || !parsedToDate) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid statistics date range');
+    }
+
+    const fromDate =
+      parsedFromDate <= parsedToDate ? new Date(parsedFromDate) : new Date(parsedToDate);
+    const toDate =
+      parsedFromDate <= parsedToDate ? new Date(parsedToDate) : new Date(parsedFromDate);
+    const days =
+      Math.min(
+        Math.max(
+          Math.ceil((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000)) + 1,
+          1
+        ),
+        90
+      );
+
+    return {
+      fromDate,
+      toDate,
+      days,
+      period: 'custom' as const,
+      label: getStatisticsRangeLabel('custom', days, fromDate, toDate)
+    };
+  }
+
+  const period = options.period;
+  const daysByPeriod: Record<Exclude<StatisticsPeriodInput, 'custom'>, number> = {
+    day: 1,
+    week: 7,
+    month: 30
+  };
+
+  if (period === 'day' || period === 'week' || period === 'month') {
+    const days = daysByPeriod[period];
+    const { fromDate, toDate } = buildDateRange(days);
+
+    return {
+      fromDate,
+      toDate,
+      days,
+      period,
+      label: getStatisticsRangeLabel(period, days, fromDate, toDate)
+    };
+  }
+
+  const { fromDate, toDate } = buildDateRange(normalizedDays);
+
+  return {
+    fromDate,
+    toDate,
+    days: normalizedDays,
+    period: 'rolling' as const,
+    label: getStatisticsRangeLabel('rolling', normalizedDays, fromDate, toDate)
+  };
 };
 
 const AUTO_COMPLETE_DAYS = 3;
@@ -1199,17 +1337,12 @@ export const listAllOrders = async (options: {
   limit: number;
   search?: string;
   status?: OrderStatus;
-  userId?: string;
 }) => {
   await autoCompleteDeliveredOrders();
   const filters: Record<string, unknown> = {};
 
   if (options.status) {
     filters.status = options.status;
-  }
-
-  if (options.userId) {
-    filters.userId = toObjectId(options.userId, 'userId');
   }
 
   const searchFilter = buildOrderSearchFilter(options.search);
@@ -1257,8 +1390,17 @@ export const listAllOrders = async (options: {
 
 export const getOrderStatistics = async (options: ListOrderStatisticsOptions) => {
   await autoCompleteDeliveredOrders();
-  const normalizedDays = Math.min(Math.max(Math.trunc(options.days), 1), 90);
-  const { fromDate, toDate } = buildDateRange(normalizedDays);
+  const { fromDate, toDate, days, period, label } = buildStatisticsDateRange(options);
+  const statisticsRangeMatch = {
+    createdAt: {
+      $gte: fromDate,
+      $lte: toDate
+    }
+  } satisfies Record<string, unknown>;
+  const completedStatisticsMatch = {
+    ...statisticsRangeMatch,
+    status: 'completed'
+  } satisfies Record<string, unknown>;
 
   const [
     orderSummaryAggregate,
@@ -1293,18 +1435,23 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       deliveredRevenue: number;
     }>([
       {
+        $match: statisticsRangeMatch
+      },
+      {
         $group: {
           _id: null,
           totalOrders: { $sum: 1 },
           deliveredOrders: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, 1, 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, 1, 0]
             }
           },
           processingOrders: {
             $sum: {
               $cond: [
-                { $in: ['$status', ['awaiting_payment', 'pending', 'confirmed', 'shipping']] },
+                {
+                  $in: ['$status', ['awaiting_payment', 'pending', 'confirmed', 'shipping', 'delivered']]
+                },
                 1,
                 0
               ]
@@ -1318,7 +1465,7 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
           grossRevenue: { $sum: '$totalAmount' },
           deliveredRevenue: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0]
             }
           }
         }
@@ -1330,12 +1477,15 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       revenue: number;
     }>([
       {
+        $match: statisticsRangeMatch
+      },
+      {
         $group: {
           _id: '$status',
           count: { $sum: 1 },
           revenue: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0]
             }
           }
         }
@@ -1347,12 +1497,15 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       revenue: number;
     }>([
       {
+        $match: statisticsRangeMatch
+      },
+      {
         $group: {
           _id: '$paymentMethod',
           count: { $sum: 1 },
           revenue: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0]
             }
           }
         }
@@ -1409,13 +1562,13 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
           orderIds: { $addToSet: '$_id' },
           deliveredOrderIds: {
             $addToSet: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$_id', null]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$_id', null]
             }
           },
           items: { $sum: '$items.quantity' },
           revenue: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$items.total', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$items.total', 0]
             }
           }
         }
@@ -1460,18 +1613,19 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
           _id: {
             $dateToString: {
               format: '%Y-%m-%d',
-              date: '$createdAt'
+              date: '$createdAt',
+              timezone: DASHBOARD_TIME_ZONE
             }
           },
           orders: { $sum: 1 },
           deliveredOrders: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, 1, 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, 1, 0]
             }
           },
           revenue: {
             $sum: {
-              $cond: [{ $in: ['$status', ['delivered', 'completed']] }, '$totalAmount', 0]
+              $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0]
             }
           }
         }
@@ -1498,9 +1652,7 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
     CommentModel.countDocuments({ targetModel: 'product', isHidden: { $ne: true } }),
     OrderModel.aggregate<{ _id: null; totalItemsSold: number }>([
       {
-        $match: {
-          status: { $in: ['delivered', 'completed'] }
-        }
+        $match: completedStatisticsMatch
       },
       { $unwind: '$items' },
       {
@@ -1512,21 +1664,141 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
         }
       }
     ]),
-    ProductModel.find({})
-      .sort({ soldCount: -1, reviewCount: -1, createdAt: -1 })
-      .limit(8)
-      .select('name brand soldCount reviewCount averageRating isAvailable images')
-      .lean(),
-    ProductModel.find({})
-      .sort({ soldCount: 1, reviewCount: 1, createdAt: -1 })
-      .limit(8)
-      .select('name brand soldCount reviewCount averageRating isAvailable images')
-      .lean(),
+    OrderModel.aggregate<ProductSalesAggregateItem>([
+      {
+        $match: completedStatisticsMatch
+      },
+      {
+        $unwind: '$items'
+      },
+      {
+        $group: {
+          _id: '$items.productId',
+          soldCount: { $sum: '$items.quantity' },
+          revenue: { $sum: '$items.total' },
+          snapshotName: { $first: '$items.productName' },
+          snapshotImage: { $first: '$items.productImage' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: {
+            $ifNull: ['$product.name', '$snapshotName']
+          },
+          brand: {
+            $ifNull: ['$product.brand', 'Generic']
+          },
+          soldCount: 1,
+          revenue: 1,
+          reviewCount: {
+            $ifNull: ['$product.reviewCount', 0]
+          },
+          averageRating: {
+            $ifNull: ['$product.averageRating', 0]
+          },
+          isAvailable: {
+            $ifNull: ['$product.isAvailable', false]
+          },
+          thumbnailUrl: {
+            $ifNull: [{ $arrayElemAt: ['$product.images', 0] }, '$snapshotImage']
+          }
+        }
+      },
+      {
+        $sort: {
+          soldCount: -1,
+          revenue: -1,
+          name: 1
+        }
+      },
+      {
+        $limit: 8
+      }
+    ]),
+    OrderModel.aggregate<ProductSalesAggregateItem>([
+      {
+        $match: completedStatisticsMatch
+      },
+      {
+        $unwind: '$items'
+      },
+      {
+        $group: {
+          _id: '$items.productId',
+          soldCount: { $sum: '$items.quantity' },
+          revenue: { $sum: '$items.total' },
+          snapshotName: { $first: '$items.productName' },
+          snapshotImage: { $first: '$items.productImage' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: {
+            $ifNull: ['$product.name', '$snapshotName']
+          },
+          brand: {
+            $ifNull: ['$product.brand', 'Generic']
+          },
+          soldCount: 1,
+          revenue: 1,
+          reviewCount: {
+            $ifNull: ['$product.reviewCount', 0]
+          },
+          averageRating: {
+            $ifNull: ['$product.averageRating', 0]
+          },
+          isAvailable: {
+            $ifNull: ['$product.isAvailable', false]
+          },
+          thumbnailUrl: {
+            $ifNull: [{ $arrayElemAt: ['$product.images', 0] }, '$snapshotImage']
+          }
+        }
+      },
+      {
+        $sort: {
+          soldCount: 1,
+          revenue: 1,
+          name: 1
+        }
+      },
+      {
+        $limit: 8
+      }
+    ]),
     OrderModel.aggregate<VariantSalesAggregateItem>([
       {
-        $match: {
-          status: { $in: ['delivered', 'completed'] }
-        }
+        $match: completedStatisticsMatch
       },
       {
         $unwind: '$items'
@@ -1555,9 +1827,7 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
     ]),
     OrderModel.aggregate<VariantSalesAggregateItem>([
       {
-        $match: {
-          status: { $in: ['delivered', 'completed'] }
-        }
+        $match: completedStatisticsMatch
       },
       {
         $unwind: '$items'
@@ -1730,7 +2000,9 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       totalComments
     },
     trends: {
-      days: normalizedDays,
+      days,
+      period,
+      label,
       fromDate: fromDate.toISOString(),
       toDate: toDate.toISOString(),
       dailyRevenue
@@ -1748,7 +2020,7 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       reviewCount: product.reviewCount,
       averageRating: product.averageRating,
       isAvailable: product.isAvailable,
-      thumbnailUrl: product.images[0] ?? null
+      thumbnailUrl: product.thumbnailUrl ?? null
     })),
     bottomProducts: bottomProducts.map((product) => ({
       productId: String(product._id),
@@ -1758,7 +2030,7 @@ export const getOrderStatistics = async (options: ListOrderStatisticsOptions) =>
       reviewCount: product.reviewCount,
       averageRating: product.averageRating,
       isAvailable: product.isAvailable,
-      thumbnailUrl: product.images[0] ?? null
+      thumbnailUrl: product.thumbnailUrl ?? null
     })),
     topVariants: topVariantsAggregate.map((item) => mapVariantStats(item)),
     bottomVariants: bottomVariantsAggregate.map((item) => mapVariantStats(item))

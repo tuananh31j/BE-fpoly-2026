@@ -82,8 +82,7 @@ export const listAllOrdersController = asyncHandler(async (req, res) => {
     search: getOptionalParam(req.query.search as string | string[] | undefined),
     status: getOptionalParam(req.query.status as string | string[] | undefined) as
       | OrderStatus
-      | undefined,
-    userId: getOptionalParam(req.query.userId as string | string[] | undefined)
+      | undefined
   });
 
   return sendSuccess(res, {
@@ -238,9 +237,13 @@ export const updateOrderStatusController = asyncHandler(async (req, res) => {
 
 export const getOrderStatisticsController = asyncHandler(async (req, res) => {
   const daysRaw = Number(req.query.days);
-  const normalizedDays = Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90) : 7;
   const data = await getOrderStatistics({
-    days: normalizedDays
+    days: Number.isFinite(daysRaw) ? Math.min(Math.max(Math.trunc(daysRaw), 1), 90) : undefined,
+    period: getOptionalParam(
+      req.query.period as string | string[] | undefined
+    ) as 'day' | 'week' | 'month' | 'custom' | undefined,
+    fromDate: getOptionalParam(req.query.fromDate as string | string[] | undefined),
+    toDate: getOptionalParam(req.query.toDate as string | string[] | undefined)
   });
 
   return sendSuccess(res, {

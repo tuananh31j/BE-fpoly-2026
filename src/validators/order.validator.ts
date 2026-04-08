@@ -18,7 +18,6 @@ export const listOrdersSchema = z.object({
   query: z.object({
     page: z.string().optional(),
     limit: z.string().optional(),
-    userId: z.string().optional(),
     search: z.string().optional(),
     status: z
       .enum([
@@ -37,7 +36,10 @@ export const listOrdersSchema = z.object({
 
 export const orderStatisticsSchema = z.object({
   query: z.object({
-    days: z.string().regex(/^\d+$/).optional()
+    days: z.string().regex(/^\d+$/).optional(),
+    period: z.enum(['day', 'week', 'month', 'custom']).optional(),
+    fromDate: z.string().datetime().optional(),
+    toDate: z.string().datetime().optional()
   })
 });
 
