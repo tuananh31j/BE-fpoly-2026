@@ -348,7 +348,6 @@ const seedBrands = async (count: number) => {
     const created = await BrandModel.create({
       name,
       description: faker.lorem.sentence(),
-      logoUrl: randomImage(`brand-${uniqueSuffix()}`),
       isActive: true
     });
 
